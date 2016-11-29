@@ -1,0 +1,4 @@
+# MPLAB X IDE v3.45
+build/
+debug/
+dist/
