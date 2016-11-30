@@ -157,7 +157,7 @@ SD_TYPE SD_initialiseModeSPI()
 			switch (response[0])
 			{
 				case 0x00:
-					return SD_TYPE_DONT_IDLE;
+					return SD_TYPE_DONT_IDLE;	// Или карта не установлена
 				default:
 					return SD_TYPE_UNKNOWN;
 			}
@@ -325,43 +325,45 @@ bool SD_setConfig(uint16_t blocklen, bool crcEnabled)
 // ******************************************************************
 
 bool SD_readSingle512Block(uint8_t destination[], uint32_t addrOfPhisicalSector)
-{			
+{
 	uint16_t i;
 
-	uint8_t response[5];	
-	
+	uint8_t response[5];
+
 	// CMD17 (READ_SINGLE_BLOCK): Reads a block of the size selected by the SET_BLOCKLEN command
 	// Argument: [31:0] data address
 	// The unit of “data address” in argument is byte
 	// for Standard Capacity SD Memory Card and block (512 bytes)
 	// for High Capacity SD Memory Card.
 	// Response: R1
-	
+
 	// MY: sdStatus.sdType == SD2HC ? startBlock : startBlock << 9
 	// если это не High Capacity карта, то номер блока умножается на 512 (выбор целевого байта, соответствующего началу искомого 512-блока).
 	if (!SD_sendCMD(SD_CMD_READ_SINGLE_BLOCK, SDConfig.SD_type == SD_TYPE_SD2HC ? addrOfPhisicalSector : addrOfPhisicalSector << 9, response))
-		return false;	
+		return false;
+
 	if (response[0] != 0x00) // Проверяем SD стуатус: 0x00 - OK
-		return false;	
-	
+		return false;
+
 	if (!SD_waitDataToken())
-		return false;	
-	
+		return false;
+
 	SD_CS_ASSERT;
+
 	for (i = 0; i < 512; i++) // Читаем 512 байт
-		destination[i] = SPI1_rw(0xFF);		
-	
+		destination[i] = SPI1_rw(0xFF);
+
 	// Приём входящего CRC16 принятого 512-блока данных (16 бит)
 	uint16_t crc16Incoming = (SPI1_rw(0xFF) << 8);
 	crc16Incoming += SPI1_rw(0xFF);
-	
+
 	SPI1_rw(0xFF); //extra 8 clock pulses
 	SD_CS_DEASSERT;
-	
+
 	if (SDConfig.SD_crcEnabled)
 		if (MATH_CRC16_SD(destination, 512) != crc16Incoming)
-			return false;	
-		
+			return false;
+
 	return true;
 }
 //------------------------------------------------------------------------------
@@ -374,15 +376,15 @@ bool SD_readSingle512Block(uint8_t destination[], uint32_t addrOfPhisicalSector)
 // ******************************************************************
 
 bool SD_writeSingle512Block(uint8_t source[], uint32_t addrOfPhisicalSector)
-{	
+{
 	uint16_t i;
 
 	uint8_t response[5];
-	
+
 	// CMD24 (WRITE_BLOCK): Writes a block of the size selected by the SET_BLOCKLEN command.
 	// Response: R1
 	if (!SD_sendCMD(SD_CMD_WRITE_BLOCK, SDConfig.SD_type == SD_TYPE_SD2HC ? addrOfPhisicalSector : addrOfPhisicalSector << 9, response)) //write a Block command
-		return false;	
+		return false;
 
 	if (response[0] != 0x00) // Проверяем SD статус: 0x00 - OK
 		return false;
@@ -392,7 +394,7 @@ bool SD_writeSingle512Block(uint8_t source[], uint32_t addrOfPhisicalSector)
 
 	for (i = 0; i < BYTE_PER_SECTOR; i++) // Отправляет 512 байтов данных
 		SPI1_rw(source[i]);
-	
+
 	uint16_t crc16 = 0xFFFF;
 	if (SDConfig.SD_crcEnabled)
 		crc16 = MATH_CRC16_SD(source, BYTE_PER_SECTOR);
@@ -415,7 +417,7 @@ bool SD_writeSingle512Block(uint8_t source[], uint32_t addrOfPhisicalSector)
 	SD_CS_DEASSERT;
 	SPI1_rw(0xFF); //just spend 8 clock cycle delay before reasserting the CS line
 	SD_CS_ASSERT; //re-asserting the CS line to verify if card is still busy
-	
+
 	uint32_t waiting = UINT32_MAX;
 	while (!SPI1_rw(0xFF)) //wait for SD card to complete writing and get idle
 		if (waiting-- == 0x00000000) // Если первышено максимальное число попыток возвращения в штатное состояние
@@ -423,13 +425,13 @@ bool SD_writeSingle512Block(uint8_t source[], uint32_t addrOfPhisicalSector)
 			// TODO: по-моему именно здесь он дольше всего задерживается после записи,
 			// возможно стоит изучить эту ситуацию подробнее.
 			// Одной SD2HC (4 ГБ) оказалось мало 0xFFFE o_0
-			
+
 			SD_CS_DEASSERT;
 			return false;
-		}	
+		}
 
 	SD_CS_DEASSERT;
-	
+
 	return true;
 }
 //------------------------------------------------------------------------------

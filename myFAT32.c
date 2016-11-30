@@ -13,7 +13,6 @@ LOGICAL_MY_FAT32_DRIVE_INFO LogacalDriveInfo;
 // TODO: заменить на какой-то нормальный суррогат реального времени	
 static struct tm currentTime;
 
-
 // ******************************************************************
 //Функция: проверить BIOS Parameter Block запоминающего устройства
 //(SD карты) на совместимость с myFAT32
@@ -335,7 +334,7 @@ static bool FS_stepToNextRootDirEntry(LOGICAL_MY_FAT32_DRIVE_INFO *myInfo)
 
 	if (!SD_readSingle512Block((uint8_t*) dirEntries, indexOfOldSectorInRootDir))
 		return false;
-	
+
 	FS_writeFileEntryUpdate(&dirEntries[indexOfOldEntryInSector], myInfo, &currentTime);
 
 	++(myInfo->CUR_FileNameIndex);

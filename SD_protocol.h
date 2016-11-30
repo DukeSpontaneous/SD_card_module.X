@@ -3,9 +3,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define CRC_ENABLE true
-#define SD_CARD_DEFAULT_TYPE SD_TYPE_NO_CARD
-
 // Формат команды:
 //	Номер_команды	Аргумент_команды		CRC7
 // {{0x40 + CMDx}, {0x??, 0x??, 0x??, 0x??}, {0x??}}
@@ -57,6 +54,9 @@ typedef enum
 	SD_TYPE_SD2HC
 } SD_TYPE;
 //------------------------------------------------------------------------------
+
+#define SD_CARD_DEFAULT_TYPE SD_TYPE_UNKNOWN
+#define CRC_ENABLE true
 
 typedef struct
 {

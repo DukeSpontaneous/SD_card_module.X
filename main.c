@@ -6,9 +6,19 @@
 #include "SPI_protocol.h"
 #include "SD_protocol.h"
 #include "myFAT32.h"
-	
-static bool tryValidationExternalCard()
-{	
+
+// Объявим возможные состояния работы модуля
+
+typedef enum
+{
+	MODULE_STATE_NO_CARD,
+	MODULE_STATE_CARD_DETECTED,
+	MODULE_STATE_CARD_INITIALIZED,
+	MODULE_STATE_FAILED
+} MODULE_STATE;
+
+static bool tryValidationCard()
+{
 	SDConfig.SD_type = SD_initialiseModeSPI();
 	if (
 			SDConfig.SD_type != SD_TYPE_UNKNOWN &&
@@ -44,7 +54,7 @@ static bool tryValidationExternalCard()
 	{
 		return false;
 	}
-	
+
 	return true;
 }
 //------------------------------------------------------------------------------
@@ -92,23 +102,33 @@ void main(void)
 	//    T2initial(); // RS-485
 	//    T4initial(); // отстутствие связи
 	//    RS485_initial(); // инициализация порта UART
-	
-	if (tryValidationExternalCard())
-	{
-		uint8_t myBuf1[] = "...Duke was here";
 
-		while (true)
-			if (!FS_loggingPacket(myBuf1, 16))
-				Nop();
+	const char data[] = "...Testing";
 
-	} else
-	{
-		Nop(); // TODO: инициализация завершена аварийно!
-	}
-
-
+	MODULE_STATE moduleState = MODULE_STATE_CARD_DETECTED; //MODULE_STATE_NO_CARD;	
 	while (true)
 	{
+		switch (moduleState)
+		{
+			case MODULE_STATE_NO_CARD:
+				// Искать карту
+				break;
+			case MODULE_STATE_CARD_DETECTED:
+				// Инициализировать карту				
+				moduleState = tryValidationCard() ?
+						MODULE_STATE_CARD_INITIALIZED : MODULE_STATE_FAILED;
+				break;
+			case MODULE_STATE_CARD_INITIALIZED:
+				// Записать буфер, если он готов
+				if (!FS_loggingPacket((const uint8_t*) data, strlen(data)))
+					moduleState = MODULE_STATE_FAILED;
+				break;
+			default:
+				// Сигнализировать об аварийной ситуации и обработать её
+				while (true);
+				break;
+
+		}
 	}
 }
 //------------------------------------------------------------------------------
