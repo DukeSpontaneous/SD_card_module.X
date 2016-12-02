@@ -19,8 +19,20 @@ void SPI_initial(void) //инициализация SPI
     // SPI1CON1bits.SSEN = 0;
     SPI1CON1bits.CKP = 1;
     SPI1CON1bits.MSTEN = 1;
+	
+	// SPRE<2:0>: Secondary Prescale bits (Master mode) (2)
+	// 111 = Secondary prescale 1:1
+	// 110 = Secondary prescale 2:1
+	// ...
+	// 000 = Secondary prescale 8:1
     SPI1CON1bits.SPRE = 0b101; //13MHZ 101
-    SPI1CON1bits.PPRE = 0b11; //11
+	
+	// PPRE<1:0>: Primary Prescale bits (Master mode) (2)
+	// 11 = Primary prescale 1:1
+	// 10 = Primary prescale 4:1
+	// 01 = Primary prescale 16:1
+	// 00 = Primary prescale 64:1
+    SPI1CON1bits.PPRE = 0b11;
 
     SPI1CON2bits.FRMEN = 0;
     SPI1CON2bits.SPIFSD = 0;

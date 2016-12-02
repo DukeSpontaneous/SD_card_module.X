@@ -151,22 +151,21 @@ SD_TYPE SD_initialiseModeSPI()
 		SD_CS_ASSERT;
 		for (i = 0; i > 10; i++)
 			SPI1_rw(0xFF);
-		SD_CS_DEASSERT;
+		SD_CS_DEASSERT;		
 
 		if (retryGoToIDLE-- == 0)
 			switch (response[0])
 			{
 				case 0x00:
-					return SD_TYPE_DONT_IDLE;	// Или карта не установлена
+					return SD_TYPE_DONT_IDLE; // Или карта не установлена
 				default:
 					return SD_TYPE_UNKNOWN;
 			}
 
-		SD_sendCMD(SD_CMD_GO_IDLE_STATE, 0, response); // Команда 'reset & перейти в IDLE'
+		if (!SD_sendCMD(SD_CMD_GO_IDLE_STATE, 0, response)) // Команда 'reset & перейти в IDLE'
+			return SD_TYPE_DONT_IDLE;
 
-		// Немного отступлю от мысли и обращу внимание на то,
-		// что все ответы содержат в себе первым байтом R1,
-		// 7-й бит которого всегда является 0.
+		// Все ответы содержат в себе первым байтом R1
 		//
 		// R1[0, 7] Response Format:
 		// R1[0] b00000001: in idle state
@@ -176,7 +175,7 @@ SD_TYPE SD_initialiseModeSPI()
 		// R1[4] b00010000: erase sequence error
 		// R1[5] b00100000: address error
 		// R1[6] b01000000: parameter error
-		// R1[7] b*0000000: обязательный 0 для R1
+		// R1[7] b*0000000: обязательный 0 для R1 (7-й бит)
 	} while (response[0] != 0x01); // Если карта ещё не в IDLE state
 
 	// TODO: выяснить, зачем так было в старой программе (было деактивировано)
@@ -394,16 +393,16 @@ bool SD_writeSingle512Block(uint8_t source[], uint32_t addrOfPhisicalSector)
 
 	for (i = 0; i < BYTE_PER_SECTOR; i++) // Отправляет 512 байтов данных
 		SPI1_rw(source[i]);
-
+	
 	uint16_t crc16 = 0xFFFF;
 	if (SDConfig.SD_crcEnabled)
 		crc16 = MATH_CRC16_SD(source, BYTE_PER_SECTOR);
-
+	
 	SPI1_rw(crc16 >> 8); // Отправить dummy CRC (16 бит)
 	SPI1_rw(crc16 & 0xFF);
 
 	response[0] = SPI1_rw(0xFF);
-
+	
 	//response = 0bXXX0AAA1; AAA='0b010' - data accepted
 	if ((response[0] & 0x1F) != 0x05)
 	{
@@ -412,14 +411,16 @@ bool SD_writeSingle512Block(uint8_t source[], uint32_t addrOfPhisicalSector)
 		// *****110* - data rejected due to write error
 		SD_CS_DEASSERT;
 		return false;
-	}
+	}	
 
 	SD_CS_DEASSERT;
 	SPI1_rw(0xFF); //just spend 8 clock cycle delay before reasserting the CS line
 	SD_CS_ASSERT; //re-asserting the CS line to verify if card is still busy
 
-	uint32_t waiting = UINT32_MAX;
+	uint32_t waiting = UINT32_MAX;	
+	
 	while (!SPI1_rw(0xFF)) //wait for SD card to complete writing and get idle
+	{		
 		if (waiting-- == 0x00000000) // Если первышено максимальное число попыток возвращения в штатное состояние
 		{
 			// TODO: по-моему именно здесь он дольше всего задерживается после записи,
@@ -429,6 +430,7 @@ bool SD_writeSingle512Block(uint8_t source[], uint32_t addrOfPhisicalSector)
 			SD_CS_DEASSERT;
 			return false;
 		}
+	}
 
 	SD_CS_DEASSERT;
 

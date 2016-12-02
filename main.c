@@ -91,7 +91,7 @@ void main(void)
 	TRISBbits.TRISB8 = 1; /*in rs485*/
 	TRISBbits.TRISB4 = 1; /*cD cheak*/
 	TRISBbits.TRISB5 = 1; /*wp cheak*/
-	TRISBbits.TRISB15 = 1; /*input mikric*/
+	TRISBbits.TRISB15 = 1; /*input mikric (0 - закрыт, 1 - открыт)*/
 
 	RED_LED = 1; //off
 	WHITE_LED = 0; //off
@@ -104,8 +104,7 @@ void main(void)
 	//    RS485_initial(); // инициализация порта UART
 
 	const char data[] = "...Testing";
-
-	MODULE_STATE moduleState = MODULE_STATE_CARD_DETECTED; //MODULE_STATE_NO_CARD;	
+	MODULE_STATE moduleState = MODULE_STATE_CARD_DETECTED; // MODULE_STATE_NO_CARD;	
 	while (true)
 	{
 		switch (moduleState)
@@ -118,7 +117,7 @@ void main(void)
 				moduleState = tryValidationCard() ?
 						MODULE_STATE_CARD_INITIALIZED : MODULE_STATE_FAILED;
 				break;
-			case MODULE_STATE_CARD_INITIALIZED:
+			case MODULE_STATE_CARD_INITIALIZED:				
 				// Записать буфер, если он готов
 				if (!FS_loggingPacket((const uint8_t*) data, strlen(data)))
 					moduleState = MODULE_STATE_FAILED;
