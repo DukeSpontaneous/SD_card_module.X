@@ -4,19 +4,44 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
-      <logicalFolder name="f2" displayName="Helpers" projectFiles="true">
-        <itemPath>MathHelper.h</itemPath>
-        <itemPath>TimeHelper.h</itemPath>
+      <logicalFolder name="f3" displayName="app" projectFiles="true">
+        <logicalFolder name="f1" displayName="system_config" projectFiles="true">
+          <logicalFolder name="pic24hj128gp502_sd_module"
+                         displayName="pic24hj128gp502_sd_module"
+                         projectFiles="true">
+            <itemPath>app/system_config/pic24hj128gp502_sd_module/drv_spi_config.h</itemPath>
+            <itemPath>app/system_config/pic24hj128gp502_sd_module/system.h</itemPath>
+          </logicalFolder>
+        </logicalFolder>
+        <itemPath>app/main.h</itemPath>
+        <itemPath>app/system_config.h</itemPath>
+        <itemPath>app/fileio_config.h</itemPath>
+        <itemPath>app/sd_spi_config.h</itemPath>
+        <itemPath>app/ringstore_fat32_config.h</itemPath>
       </logicalFolder>
-      <logicalFolder name="f1" displayName="SD_card" projectFiles="true">
-        <itemPath>myFAT32.h</itemPath>
-        <itemPath>SD_protocol.h</itemPath>
+      <logicalFolder name="f2" displayName="bsp" projectFiles="true">
+        <logicalFolder name="f1"
+                       displayName="pic24hj128gp502_sd_module"
+                       projectFiles="true">
+          <itemPath>bsp/pic24hj128gp502_sd_module/rtcc.h</itemPath>
+        </logicalFolder>
       </logicalFolder>
-      <itemPath>configbits.h</itemPath>
-      <itemPath>RS-485_protocol.h</itemPath>
-      <itemPath>SPI_protocol.h</itemPath>
-      <itemPath>SPI_DMA_interrupt.h</itemPath>
-      <itemPath>pins.h</itemPath>
+      <logicalFolder name="f1" displayName="framework" projectFiles="true">
+        <logicalFolder name="f1" displayName="driver" projectFiles="true">
+          <logicalFolder name="f1" displayName="spi" projectFiles="true">
+            <itemPath>framework/driver/spi/drv_spi.h</itemPath>
+          </logicalFolder>
+        </logicalFolder>
+        <logicalFolder name="f2" displayName="fileio" projectFiles="true">
+          <itemPath>framework/fileio/drivers/sd_spi/sd_spi.h</itemPath>
+          <itemPath>framework/fileio/inc/fileio.h</itemPath>
+        </logicalFolder>
+      </logicalFolder>
+      <logicalFolder name="f4" displayName="mydrivers" projectFiles="true">
+        <logicalFolder name="f1" displayName="fileio" projectFiles="true">
+          <itemPath>mydrivers/fileio/ringstore_fat32.h</itemPath>
+        </logicalFolder>
+      </logicalFolder>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -25,20 +50,41 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <logicalFolder name="f2" displayName="Helpers" projectFiles="true">
-        <itemPath>MathHelper.c</itemPath>
-        <itemPath>TimeHelper.c</itemPath>
+      <logicalFolder name="f3" displayName="app" projectFiles="true">
+        <logicalFolder name="f2" displayName="system_config" projectFiles="true">
+          <logicalFolder name="pic24hj128gp502_sd_module"
+                         displayName="pic24hj128gp502_sd_module"
+                         projectFiles="true">
+            <itemPath>app/system_config/pic24hj128gp502_sd_module/system.c</itemPath>
+          </logicalFolder>
+        </logicalFolder>
+        <itemPath>app/main.c</itemPath>
       </logicalFolder>
-      <logicalFolder name="f1" displayName="SD_card" projectFiles="true">
-        <itemPath>SD_protocol.c</itemPath>
-        <itemPath>myFAT32.c</itemPath>
+      <logicalFolder name="f2" displayName="bsp" projectFiles="true">
+        <logicalFolder name="f1"
+                       displayName="pic24hj128gp502_sd_module"
+                       projectFiles="true">
+          <itemPath>bsp/pic24hj128gp502_sd_module/rtcc.c</itemPath>
+        </logicalFolder>
       </logicalFolder>
-      <itemPath>main.c</itemPath>
-      <itemPath>interrupt.c</itemPath>
-      <itemPath>RS-485_protocol.c</itemPath>
-      <itemPath>SPI_DMA_interrupt.c</itemPath>
-      <itemPath>SPI_protocol.c</itemPath>
-      <itemPath>timer.c</itemPath>
+      <logicalFolder name="f1" displayName="framework" projectFiles="true">
+        <logicalFolder name="f1" displayName="driver" projectFiles="true">
+          <logicalFolder name="spi" displayName="spi" projectFiles="true">
+            <itemPath>framework/driver/spi/src/drv_spi_16bit.c</itemPath>
+            <itemPath>framework/driver/spi/src/drv_spi_16bit_v2.c</itemPath>
+            <itemPath>framework/driver/spi/src/drv_spi_pic18.c</itemPath>
+          </logicalFolder>
+        </logicalFolder>
+        <logicalFolder name="src" displayName="fileio" projectFiles="true">
+          <itemPath>framework/fileio/src/fileio.c</itemPath>
+          <itemPath>framework/fileio/drivers/sd_spi/sd_spi.c</itemPath>
+        </logicalFolder>
+      </logicalFolder>
+      <logicalFolder name="f4" displayName="mydrivers" projectFiles="true">
+        <logicalFolder name="f1" displayName="fileio" projectFiles="true">
+          <itemPath>mydrivers/fileio/ringstore_fat32.c</itemPath>
+        </logicalFolder>
+      </logicalFolder>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -51,7 +97,7 @@
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
-    <conf name="default" type="2">
+    <conf name="pic24hj128gp502_sd_module" type="2">
       <toolsSet>
         <developmentServer>localhost</developmentServer>
         <targetDevice>PIC24HJ128GP502</targetDevice>
@@ -59,7 +105,7 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>PICkit3PlatformTool</platformTool>
         <languageToolchain>XC16</languageToolchain>
-        <languageToolchainVersion>1.26</languageToolchainVersion>
+        <languageToolchainVersion>1.30</languageToolchainVersion>
         <platform>3</platform>
       </toolsSet>
       <compileType>
@@ -101,7 +147,8 @@
         <property key="enable-short-double" value="false"/>
         <property key="enable-symbols" value="true"/>
         <property key="enable-unroll-loops" value="false"/>
-        <property key="extra-include-directories" value=""/>
+        <property key="extra-include-directories"
+                  value="app;framework;framework\fileio\src;framework\fileio\inc;app\system_config\pic24hj128gp502_sd_module;framework\driver\spi;framework\fileio\drivers\sd_spi;bsp\pic24hj128gp502_sd_module;mydrivers\fileio"/>
         <property key="isolate-each-function" value="false"/>
         <property key="keep-inline" value="false"/>
         <property key="oXC16gcc-align-arr" value="false"/>
@@ -249,6 +296,100 @@
         <property key="programoptions.uselvpprogramming" value="false"/>
         <property key="voltagevalue" value="3.25"/>
       </ICD3PlatformTool>
+      <PICkit3PlatformTool>
+        <property key="ADC 1" value="true"/>
+        <property key="AutoSelectMemRanges" value="auto"/>
+        <property key="CRC" value="true"/>
+        <property key="DUAL COMPARATOR" value="true"/>
+        <property key="ECAN" value="true"/>
+        <property key="Freeze All Other Peripherals" value="true"/>
+        <property key="I2C1" value="true"/>
+        <property key="INPUT CAPTURE 1" value="true"/>
+        <property key="INPUT CAPTURE 2" value="true"/>
+        <property key="INPUT CAPTURE 7" value="true"/>
+        <property key="INPUT CAPTURE 8" value="true"/>
+        <property key="OUTPUT COMPARE 1" value="true"/>
+        <property key="OUTPUT COMPARE 2" value="true"/>
+        <property key="OUTPUT COMPARE 3" value="true"/>
+        <property key="OUTPUT COMPARE 8" value="true"/>
+        <property key="PARALLEL MASTER/SLAVE PORT" value="true"/>
+        <property key="REAL TIME CLOCK AND CALENDAR" value="true"/>
+        <property key="SPI 1" value="true"/>
+        <property key="SPI 2" value="true"/>
+        <property key="SecureSegment.SegmentProgramming" value="FullChipProgramming"/>
+        <property key="TIMER1" value="true"/>
+        <property key="TIMER2" value="true"/>
+        <property key="TIMER3" value="true"/>
+        <property key="TIMER4" value="true"/>
+        <property key="TIMER5" value="true"/>
+        <property key="ToolFirmwareFilePath"
+                  value="Press to browse for a specific firmware version"/>
+        <property key="ToolFirmwareOption.UseLatestFirmware" value="true"/>
+        <property key="UART 1" value="true"/>
+        <property key="UART 2" value="true"/>
+        <property key="firmware.download.all" value="false"/>
+        <property key="hwtoolclock.frcindebug" value="false"/>
+        <property key="memories.aux" value="false"/>
+        <property key="memories.bootflash" value="true"/>
+        <property key="memories.configurationmemory" value="true"/>
+        <property key="memories.configurationmemory2" value="true"/>
+        <property key="memories.dataflash" value="true"/>
+        <property key="memories.eeprom" value="true"/>
+        <property key="memories.flashdata" value="true"/>
+        <property key="memories.id" value="true"/>
+        <property key="memories.instruction.ram" value="true"/>
+        <property key="memories.instruction.ram.ranges"
+                  value="${memories.instruction.ram.ranges}"/>
+        <property key="memories.programmemory" value="true"/>
+        <property key="memories.programmemory.ranges" value="0-157ff"/>
+        <property key="poweroptions.powerenable" value="false"/>
+        <property key="programmertogo.imagename" value=""/>
+        <property key="programoptions.donoteraseauxmem" value="false"/>
+        <property key="programoptions.eraseb4program" value="true"/>
+        <property key="programoptions.pgmspeed" value="2"/>
+        <property key="programoptions.preservedataflash" value="false"/>
+        <property key="programoptions.preservedataflash.ranges"
+                  value="${programoptions.preservedataflash.ranges}"/>
+        <property key="programoptions.preserveeeprom" value="false"/>
+        <property key="programoptions.preserveeeprom.ranges" value=""/>
+        <property key="programoptions.preserveprogram.ranges" value=""/>
+        <property key="programoptions.preserveprogramrange" value="false"/>
+        <property key="programoptions.preserveuserid" value="false"/>
+        <property key="programoptions.programcalmem" value="false"/>
+        <property key="programoptions.programuserotp" value="false"/>
+        <property key="programoptions.testmodeentrymethod" value="VDDFirst"/>
+        <property key="programoptions.usehighvoltageonmclr" value="false"/>
+        <property key="programoptions.uselvpprogramming" value="false"/>
+        <property key="voltagevalue" value="3.25"/>
+      </PICkit3PlatformTool>
+      <item path="framework/driver/spi/src/drv_spi_16bit_v2.c"
+            ex="true"
+            overriding="false">
+        <C30>
+        </C30>
+        <C30-AR>
+        </C30-AR>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="framework/driver/spi/src/drv_spi_pic18.c"
+            ex="true"
+            overriding="false">
+        <C30>
+        </C30>
+        <C30-AR>
+        </C30-AR>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
     </conf>
   </confs>
 </configurationDescriptor>

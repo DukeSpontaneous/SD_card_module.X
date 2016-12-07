@@ -3,7 +3,7 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>SD_card_module</name>
+            <name>sd_card_module</name>
             <creation-uuid>29afc4c5-5d95-4d4b-8b0e-846cb448f3bd</creation-uuid>
             <make-project-type>0</make-project-type>
             <c-extensions>c</c-extensions>

@@ -4,10 +4,10 @@
 # NOCDDL
 #
 CND_BASEDIR=`pwd`
-# default configuration
-CND_ARTIFACT_DIR_default=dist/default/production
-CND_ARTIFACT_NAME_default=SD_card_module.X.production.hex
-CND_ARTIFACT_PATH_default=dist/default/production/SD_card_module.X.production.hex
-CND_PACKAGE_DIR_default=${CND_DISTDIR}/default/package
-CND_PACKAGE_NAME_default=sdcardmodule.x.tar
-CND_PACKAGE_PATH_default=${CND_DISTDIR}/default/package/sdcardmodule.x.tar
+# pic24hj128gp502_sd_module configuration
+CND_ARTIFACT_DIR_pic24hj128gp502_sd_module=dist/pic24hj128gp502_sd_module/production
+CND_ARTIFACT_NAME_pic24hj128gp502_sd_module=sd_card_module.X.production.hex
+CND_ARTIFACT_PATH_pic24hj128gp502_sd_module=dist/pic24hj128gp502_sd_module/production/sd_card_module.X.production.hex
+CND_PACKAGE_DIR_pic24hj128gp502_sd_module=${CND_DISTDIR}/pic24hj128gp502_sd_module/package
+CND_PACKAGE_NAME_pic24hj128gp502_sd_module=sdcardmodule.x.tar
+CND_PACKAGE_PATH_pic24hj128gp502_sd_module=${CND_DISTDIR}/pic24hj128gp502_sd_module/package/sdcardmodule.x.tar
