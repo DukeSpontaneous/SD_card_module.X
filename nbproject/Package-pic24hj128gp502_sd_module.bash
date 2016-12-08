@@ -10,8 +10,8 @@ CND_CONF=pic24hj128gp502_sd_module
 CND_DISTDIR=dist
 TMPDIR=build/${CND_CONF}/${IMAGE_TYPE}/tmp-packaging
 TMPDIRNAME=tmp-packaging
-OUTPUT_PATH=dist/${CND_CONF}/${IMAGE_TYPE}/sd_card_module.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
-OUTPUT_BASENAME=sd_card_module.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
+OUTPUT_PATH=dist/${CND_CONF}/${IMAGE_TYPE}/SD_card_module.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
+OUTPUT_BASENAME=SD_card_module.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
 PACKAGE_TOP_DIR=sdcardmodule.x/
 
 # Functions

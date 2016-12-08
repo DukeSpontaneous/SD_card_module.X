@@ -24,7 +24,7 @@ CLEAN_SUBPROJECTS=${CLEAN_SUBPROJECTS_${SUBPROJECTS}}
 
 
 # Project Name
-PROJECTNAME=sd_card_module.X
+PROJECTNAME=SD_card_module.X
 
 # Active Configuration
 DEFAULTCONF=pic24hj128gp502_sd_module

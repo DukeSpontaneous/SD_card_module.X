@@ -24,16 +24,6 @@ const FILEIO_DRIVE_CONFIG gSdDrive = {
 	(FILEIO_DRIVER_WriteProtectStateGet) FILEIO_SD_WriteProtectStateGet, // Function to determine if the media is write-protected.
 };
 
-// Объявим возможные состояния работы модуля
-
-typedef enum
-{
-	MODULE_STATE_NO_CARD,
-	MODULE_STATE_CARD_DETECTED,
-	MODULE_STATE_CARD_INITIALIZED,
-	MODULE_STATE_FAILED
-} MODULE_STATE;
-
 int main(void)
 {
 	BSP_RTCC_DATETIME dateTime;
@@ -66,6 +56,7 @@ int main(void)
 	MODULE_STATE moduleState = MODULE_STATE_NO_CARD; // MODULE_STATE_NO_CARD;	
 	while (true)
 	{
+		SetModuleState(moduleState);
 		switch (moduleState)
 		{
 			case MODULE_STATE_NO_CARD:
@@ -78,19 +69,21 @@ int main(void)
 				break;
 			case MODULE_STATE_CARD_DETECTED:
 				// Инициализировать карту
-				moduleState = RINGSTORE_Open(&rStore, &gSdDrive, &sdCardMediaParameters) ?
+				error = RINGSTORE_Open(&rStore, &gSdDrive, &sdCardMediaParameters);
+				moduleState = error ?
 						MODULE_STATE_FAILED : MODULE_STATE_CARD_INITIALIZED;
-
 				break;
 			case MODULE_STATE_CARD_INITIALIZED:
-				// Записать буфер, если он готов				
+				// Записать буфер, если он готов
 				error = RINGSTORE_StorePacket(&rStore, (const uint8_t*) sampleData, 4);
 				if (error != FILEIO_ERROR_NONE)
 				{
-					moduleState = MODULE_STATE_FAILED;
+					moduleState = RINGSTORE_TryClose(&rStore) ?
+							MODULE_STATE_FAILED : MODULE_STATE_NO_CARD;
 				}
 
-				if (FILEIO_MediaDetect(&gSdDrive, &sdCardMediaParameters) == false)
+				error = FILEIO_MediaDetect(&gSdDrive, &sdCardMediaParameters);
+				if (error == false)
 				{
 					moduleState = RINGSTORE_TryClose(&rStore) ?
 							MODULE_STATE_FAILED : MODULE_STATE_NO_CARD;
@@ -130,3 +123,27 @@ void GetTimestamp(FILEIO_TIMESTAMP * timeStamp)
 	;
 }
 //------------------------------------------------------------------------------
+
+void SetModuleState(MODULE_STATE state)
+{
+	switch (state)
+	{
+		case MODULE_STATE_NO_CARD:
+			USER_SetLedWhite(false);
+			USER_SetLedBlue(true);
+			USER_SetLedRed(false);
+			break;
+		case MODULE_STATE_CARD_DETECTED:
+			break;
+		case MODULE_STATE_CARD_INITIALIZED:
+			USER_SetLedWhite(false);
+			USER_SetLedBlue(true);
+			USER_SetLedRed(true);
+			break;
+		case MODULE_STATE_FAILED:
+			USER_SetLedWhite(true);
+			USER_SetLedBlue(false);
+			USER_SetLedRed(false);
+			break;
+	}
+}

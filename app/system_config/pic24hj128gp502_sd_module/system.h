@@ -12,10 +12,6 @@
 // Definition for instruction clock
 #define SYS_CLK_FrequencyInstructionGet()   (SYS_CLK_FrequencySystemGet() / 2)
 
-#define BLUE_LED		LATAbits.LATA0
-#define RED_LED			LATAbits.LATA1
-#define WHITE_LED		LATBbits.LATB9
-
 #define R_T				LATBbits.LATB7 //de RS485
 #define R_T1			LATBbits.LATB7 //de RS485
 
@@ -23,3 +19,6 @@
 void SYSTEM_Initialize (void);
 
 
+inline void USER_SetLedBlue(bool stat);
+inline void USER_SetLedRed(bool stat);
+inline void USER_SetLedWhite(bool stat);

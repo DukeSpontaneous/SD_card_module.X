@@ -101,19 +101,19 @@ void SYSTEM_Initialize(void)
 	TRISBbits.TRISB8 = 1; /*in rs485*/
 	TRISBbits.TRISB15 = 1; /*input mikric (0 - закрыт, 1 - открыт)*/
 
-	RED_LED = 1; //off
-	WHITE_LED = 0; //off
-	BLUE_LED = 1; //off
+	USER_SetLedRed(false);
+	USER_SetLedBlue(false);
+	USER_SetLedWhite(false);
 }
 
 void USER_SdSpiConfigurePins(void)
-{	
+{
 	// Configure SPI1 PPS pins
-	
+
 	RPOR1bits.RP2R = 8; // assign RP? for SCK1
 	RPOR0bits.RP1R = 7; // assign RP? for SDO1
 	RPINR20bits.SDI1R = 3; // assign RP? for SDI1 /*RB3*/
-	
+
 	// Deassert the chip select pin
 	LATBbits.LATB0 = 1;
 	// Configure CS pin as an output
@@ -121,10 +121,10 @@ void USER_SdSpiConfigurePins(void)
 	// Configure CD pin as an input
 	TRISBbits.TRISB4 = 1;
 	// Configure WP pin as an input
-	TRISBbits.TRISB5 = 1;	
-	
+	TRISBbits.TRISB5 = 1;
+
 	// Configure SPI1...
-	
+
 	SPI1CON1bits.DISSCK = 0;
 	SPI1CON1bits.DISSDO = 0;
 	SPI1CON1bits.MODE16 = 0;
@@ -157,7 +157,7 @@ void USER_SdSpiConfigurePins(void)
 	SPI1STATbits.SPISIDL = 0;
 	SPI1STATbits.SPIROV = 0;
 
-	SPI1STATbits.SPIEN = 1;	
+	SPI1STATbits.SPIEN = 1;
 }
 
 inline void USER_SdSpiSetCs(uint8_t a)
@@ -185,10 +185,25 @@ inline bool USER_SdSpiGetWp(void)
 // For this demo, these functions are implemented in system.c, since the functionality will change
 // depending on which demo board/microcontroller you're using.
 // This structure must be maintained as long as the user wishes to access the specified drive.
-FILEIO_SD_DRIVE_CONFIG sdCardMediaParameters ={
+FILEIO_SD_DRIVE_CONFIG sdCardMediaParameters = {
 	1, // Use SPI module 1
 	USER_SdSpiSetCs, // User-specified function to set/clear the Chip Select pin.
 	USER_SdSpiGetCd, // User-specified function to get the status of the Card Detect pin.
 	USER_SdSpiGetWp, // User-specified function to get the status of the Write Protect pin.
 	USER_SdSpiConfigurePins // User-specified function to configure the pins' TRIS bits.
 };
+
+inline void USER_SetLedBlue(bool stat)
+{
+	LATAbits.LATA0 = stat ? false : true;
+}
+
+inline void USER_SetLedRed(bool stat)
+{
+	LATAbits.LATA1 = stat ? false : true;
+}
+
+inline void USER_SetLedWhite(bool stat)
+{
+	LATBbits.LATB9 = stat;
+}
