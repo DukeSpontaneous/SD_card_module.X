@@ -10,8 +10,6 @@
 #include "fileio_private.h"
 #include "sd_spi.h"
 
-#include "time.h"
-
 extern FILEIO_TimestampGet timestampGet;
 
 extern struct
@@ -169,7 +167,7 @@ static void RINGSTORE_UpdateDriveFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, con
 static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStore)
 {
 	uint32_t _firstDataSector = drive->firstDataSector;
-	
+
 	uint32_t indexOfOldEntryInRootDir = 1 + rStore->CUR_FileRootDirIndex;
 
 	uint8_t indexOfOldEntryInSector =
@@ -357,7 +355,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_GetInfo(RINGSTORE_OBJECT *rStore)
 	uint8_t _sectorsPerCluster = drive->sectorsPerCluster;
 	uint32_t _firstDataSector = drive->firstDataSector;
 	uint32_t _partitionClusterCount = drive->partitionClusterCount;
-	
+
 	// Пространство секторов памяти, доступное для размещения папок и файлов
 	// (с поправкой на вычет пространства памяти перед вторым кластером)
 	uint32_t logicalSectorsDataCount = _partitionClusterCount * _sectorsPerCluster;
@@ -412,9 +410,9 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 	uint8_t _fatCopyCount = drive->fatCopyCount;
 	uint8_t _sectorsPerCluster = drive->sectorsPerCluster;
 	uint32_t _fatSectorCount = drive->fatSectorCount;
-	uint32_t _firstFatSector = drive->firstFatSector;	
+	uint32_t _firstFatSector = drive->firstFatSector;
 	uint32_t _firstDataSector = drive->firstDataSector;
-	
+
 	// Если необходимо сохранять содержимое носителя между перезагрузками модуля,
 	// то при запуске программы должна проводится проверка на предмет того,
 	// форматирована ли таблица FAT32 в необходимом нам формате,
@@ -426,10 +424,11 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 	// Посекторно проверяем первую часть таблицы FAT,
 	// хранящую цепочку корневой директории,
 	// на предмет соответствия нашему формату
-	uint32_t fatSectorN, fatSectorEntryN, fatAbsoluteEntryN;
-	uint32_t fat[FILEIO_CONFIG_MEDIA_SECTOR_SIZE / sizeof (uint32_t)]; // Буфер для чтения 512 сектора
+	uint32_t fatSectorN, fatAbsoluteEntryN;
+	uint32_t *fat = (uint32_t*)(rStore->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
 
 	uint8_t fatN;
+	uint16_t fatSectorEntryN;
 
 	/*ФАЗА №1 (НАЧАЛО): Анализ префиксов и первой цепочки кластеров в таблицах FAT32*/
 
@@ -484,7 +483,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 					fatAbsoluteEntryN = 2;
 				}
 
-				if (fatAbsoluteEntryN == (firstChainOfClustersLength - 1))
+				if (fatAbsoluteEntryN == firstChainOfClustersLength - 1)
 				{
 					if (fat[fatSectorEntryN] != FAT32_MARK_EOC)
 						return FILEIO_ERROR_NOT_FORMATTED;
@@ -497,14 +496,14 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 					return FILEIO_ERROR_NOT_FORMATTED;
 				}
 			}
-			
+
 			// Передача выхода из цикла для глубоко вложенного условия
-			if (fatAbsoluteEntryN == (firstChainOfClustersLength - 1))
+			if (fatAbsoluteEntryN == firstChainOfClustersLength - 1)
 				break;
-		}		
+		}
 	}
-	
-	
+
+
 	/*ФАЗА №1 (КОНЕЦ): Анализ префиксов и первой цепочки кластеров в таблицах FAT32*/
 
 	// Если префиксы и первая цепочка (цепочка корневой директории)
@@ -524,7 +523,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 		currentFileClusterEntry = 0, myFilesCount = 0;
 		fatAbsoluteEntryN = fatSectorAfterRootDir * (FILEIO_CONFIG_MEDIA_SECTOR_SIZE / sizeof (uint32_t));
 		uint32_t fatAbsoluteNextEntryN = fatAbsoluteEntryN + 1;
-		
+
 		// Для каждого сектора таблиц FAT32,
 		// начиная со следующего за тем, на котором мы остановились ранее,
 		// мы, согласно нашему формату, ожидаем обнаружить разметку оставшейся области на 10 Мб файлы.
@@ -534,7 +533,9 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 					_firstFatSector + fatN * _fatSectorCount + fatSectorN, (uint8_t*) fat))
 				return FILEIO_ERROR_BAD_SECTOR_READ;
 
-			for (fatSectorEntryN = 0; fatSectorEntryN < (FILEIO_CONFIG_MEDIA_SECTOR_SIZE / sizeof (uint32_t)); ++fatSectorEntryN, ++fatAbsoluteNextEntryN)
+			for (fatSectorEntryN = 0;
+					fatSectorEntryN < (FILEIO_CONFIG_MEDIA_SECTOR_SIZE / sizeof (uint32_t));
+					++fatSectorEntryN, ++fatAbsoluteNextEntryN)
 			{
 				++currentFileClusterEntry;
 				if (currentFileClusterEntry == clusterPerFile)
@@ -555,7 +556,9 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 				} else
 				{
 					if (fat[fatSectorEntryN] != fatAbsoluteNextEntryN)
+					{
 						return FILEIO_ERROR_NOT_FORMATTED;
+					}
 				}
 			}
 
@@ -564,6 +567,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 		}
 	}
 	/*ФАЗА №2 (КОНЕЦ): Анализ цепочек кластеров кольца MY_FILE в таблицах FAT32*/
+
 
 	/*ФАЗА №3 (НАЧАЛО): Анализ списка записей корневой директории*/
 	// Согласно нашему воображаемому формату, список файлов корневой директории
@@ -596,7 +600,8 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 			return FILEIO_ERROR_BAD_SECTOR_READ;
 
 		uint32_t firstClusterOfFile;
-		for (dataEntryN = 0;
+		for (
+				dataEntryN = 0;
 				dataEntryN < (FILEIO_CONFIG_MEDIA_SECTOR_SIZE / FILEIO_DIRECTORY_ENTRY_SIZE);
 				++dataEntryN, ++curMyFilesCount, curClusterN += clusterPerFile)
 		{
@@ -677,14 +682,14 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 	uint8_t _fatCopyCount = drive->fatCopyCount;
 	uint8_t _sectorsPerCluster = drive->sectorsPerCluster;
 	uint32_t _fatSectorCount = drive->fatSectorCount;
-	uint32_t _firstFatSector = drive->firstFatSector;	
+	uint32_t _firstFatSector = drive->firstFatSector;
 	uint32_t _firstDataSector = drive->firstDataSector;
-	
+
 	// Посекторно проверяем первую часть таблицы FAT,
 	// хранящую цепочку корневой директории,
 	// на предмет соответствия нашему формату
 	uint32_t fatSectorN, fatSectorEntryN, fatAbsoluteEntryN;
-	uint32_t fat[FILEIO_CONFIG_MEDIA_SECTOR_SIZE / sizeof (uint32_t)]; // Буфер для чтения 512 сектора
+	uint32_t *fat = (uint32_t*)(rStore->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
 
 	uint8_t fatN;
 
@@ -762,12 +767,12 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 	// на начало следующего сектора
 	fatAbsoluteEntryN = fatAbsoluteEntryN % 128 ?
 			MATH_DivisionCeiling(fatAbsoluteEntryN, 128) * 128 : fatAbsoluteEntryN;
+	uint32_t fatAbsoluteNextEntryN = fatAbsoluteEntryN + 1;
 
-	uint32_t fatAbsoluteNextEntryN;
 	for (++fatSectorN; /*выход через break*/; ++fatSectorN)
 	{
 		for (
-				fatSectorEntryN = 0, fatAbsoluteNextEntryN = fatAbsoluteEntryN + 1;
+				fatSectorEntryN = 0;
 				fatSectorEntryN < (FILEIO_CONFIG_MEDIA_SECTOR_SIZE / sizeof (uint32_t));
 				++fatSectorEntryN, ++fatAbsoluteNextEntryN)
 		{
@@ -789,13 +794,13 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 				break;
 			}
 		}
-				
+
 		// Запись сектора во все копии таблицы FAT
 		for (fatN = 0; fatN < _fatCopyCount; ++fatN)
 		{
 			if (!FILEIO_SD_SectorWrite(drive->mediaParameters,
 					fatN * _fatSectorCount + fatSectorN, (uint8_t*) fat, false))
-				return FILEIO_ERROR_WRITE;
+				return FILEIO_ERROR_WRITE;			
 		}
 
 		// Основной выход...
@@ -803,6 +808,8 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 			break;
 	}
 	/*ФАЗА №2 (КОНЕЦ): Форматирование цепочек кластеров кольца MY_FILE в таблицах FAT32*/
+
+
 
 	/*ФАЗА №3 (НАЧАЛО): Очистка области памяти, выделенной для корневой директории*/
 
@@ -884,12 +891,9 @@ FILEIO_ERROR_TYPE RINGSTORE_Open(RINGSTORE_OBJECT *rStore, const FILEIO_DRIVE_CO
 		if (FILEIO_DriveUnmount('A') != FILEIO_RESULT_SUCCESS)
 			return FILEIO_ERROR_UNINITIALIZED;
 
-	FILEIO_ERROR_TYPE error = FILEIO_ERROR_INIT_ERROR;
-	uint8_t retrys = 3;
-	while (--retrys != 0 && error == FILEIO_ERROR_INIT_ERROR )
-	{
-		error = FILEIO_DriveMount('A', driveConfig, mediaParameters);
-	}	
+	FILEIO_ERROR_TYPE error;
+	
+	error = FILEIO_DriveMount('A', driveConfig, mediaParameters);
 	if (error != FILEIO_ERROR_NONE)
 		return error;
 

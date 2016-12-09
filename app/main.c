@@ -49,7 +49,7 @@ int main(void)
 	//    T4initial(); // отстутствие связи
 	//    RS485_initial(); // инициализация порта UART
 
-	const char sampleData[5] = "Duke";
+	const char sampleData[8] = __TIME__;
 
 	FILEIO_ERROR_TYPE error;
 
@@ -75,7 +75,7 @@ int main(void)
 				break;
 			case MODULE_STATE_CARD_INITIALIZED:
 				// Записать буфер, если он готов
-				error = RINGSTORE_StorePacket(&rStore, (const uint8_t*) sampleData, 4);
+				error = RINGSTORE_StorePacket(&rStore, (const uint8_t*) sampleData, 8);
 				if (error != FILEIO_ERROR_NONE)
 				{
 					moduleState = RINGSTORE_TryClose(&rStore) ?
@@ -134,6 +134,9 @@ void SetModuleState(MODULE_STATE state)
 			USER_SetLedRed(false);
 			break;
 		case MODULE_STATE_CARD_DETECTED:
+			USER_SetLedWhite(false);
+			USER_SetLedBlue(false);
+			USER_SetLedRed(true);
 			break;
 		case MODULE_STATE_CARD_INITIALIZED:
 			USER_SetLedWhite(false);
