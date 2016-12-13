@@ -33,7 +33,9 @@ int main(void)
 
 	dateTime.bcdFormat = false;
 	RTCC_BuildTimeGet(&dateTime);
-	RTCC_Initialize(&dateTime);
+	
+	// TODO: не сконфигурирована для этого модуля
+	//RTCC_Initialize(&dateTime);
 
 	// Initialize the library
 	if (!FILEIO_Initialize())
@@ -51,7 +53,7 @@ int main(void)
 
 	const char sampleData[8] = __TIME__;
 
-	FILEIO_ERROR_TYPE error;
+	FILEIO_ERROR_TYPE error;	
 
 	MODULE_STATE moduleState = MODULE_STATE_NO_CARD; // MODULE_STATE_NO_CARD;	
 	while (true)
