@@ -5,8 +5,8 @@
         <group>
             <file>file:/D:/Projects/GitHub/SD_card_module.X/mydrivers/fileio/ringstore_fat32.c</file>
             <file>file:/D:/Projects/GitHub/SD_card_module.X/app/main.c</file>
-            <file>file:/D:/Projects/GitHub/SD_card_module.X/framework/fileio/src/fileio.c</file>
             <file>file:/D:/Projects/GitHub/SD_card_module.X/app/system_config/pic24hj128gp502_sd_module/system.c</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/bsp/pic24hj128gp502_sd_module/rtcc.c</file>
         </group>
     </open-files>
 </project-private>

@@ -145,7 +145,7 @@ void RTCC_BuildTimeGet(RTCC_DATETIME *dateTime)
 void RTCC_Initialize(RTCC_DATETIME * value)
 {
 	// TODO: не сконфигурирована для этого модуля
-	/*
+	/* MY: неадаптированная конфигурация
    // Turn on the secondary oscillator
    __builtin_write_OSCCONL(0x02);
 
@@ -154,6 +154,7 @@ void RTCC_Initialize(RTCC_DATETIME * value)
 
    RCFGCALbits.RTCPTR0 = 1;
    RCFGCALbits.RTCPTR1 = 1;
+	 */
 
    // Set it to the correct time
    if (value->bcdFormat)
@@ -175,6 +176,7 @@ void RTCC_Initialize(RTCC_DATETIME * value)
 	   RTCVAL = (RTCC_DecToBCD (value->minute) << 8) | RTCC_DecToBCD(value->second);
    }
 
+   /* MY: неадаптированная конфигурация
    // Enable RTCC, clear RTCWREN
    RCFGCAL = 0x8000;
 	 */
@@ -185,11 +187,13 @@ void RTCC_TimeGet(RTCC_DATETIME * value)
 	uint16_t registerValue;
 	bool checkValue;
 
+	/* MY: неадаптированная конфигурация
 	RCFGCALbits.RTCPTR0 = 1;
 	RCFGCALbits.RTCPTR1 = 1;
-
-	checkValue = RCFGCALbits.RTCSYNC;
-
+	 */
+	
+	checkValue = RCFGCALbits.RTCSYNC;	
+			
 	registerValue = RTCVAL;
 	value->year = registerValue & 0xFF;
 	registerValue = RTCVAL;
@@ -216,8 +220,10 @@ void RTCC_TimeGet(RTCC_DATETIME * value)
 			tempValue.year = value->year;
 			tempValue.weekday = value->weekday;
 
+			/* MY: неадаптированная конфигурация
 			RCFGCALbits.RTCPTR0 = 1;
 			RCFGCALbits.RTCPTR1 = 1;
+			 */
 
 			value->year = RTCVAL;
 			registerValue = RTCVAL;

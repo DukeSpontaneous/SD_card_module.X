@@ -25,18 +25,19 @@ const FILEIO_DRIVE_CONFIG gSdDrive = {
 };
 
 int main(void)
-{
-	BSP_RTCC_DATETIME dateTime;
+{	
 	RINGSTORE_OBJECT rStore;
 
 	SYSTEM_Initialize();
 
+	/* TODO: неадаптированная конфигурация
+	BSP_RTCC_DATETIME dateTime;
 	dateTime.bcdFormat = false;
 	RTCC_BuildTimeGet(&dateTime);
 	
-	// TODO: не сконфигурирована для этого модуля
-	//RTCC_Initialize(&dateTime);
-
+	RTCC_Initialize(&dateTime);
+	*/
+	
 	// Initialize the library
 	if (!FILEIO_Initialize())
 	{
@@ -46,6 +47,7 @@ int main(void)
 	// Register the GetTimestamp function as the timestamp source for the library.
 	FILEIO_RegisterTimestampGet(GetTimestamp);
 
+	// TODO: что-то Вовино...
 	//    T1initial(); // таймер времени
 	//    T2initial(); // RS-485
 	//    T4initial(); // отстутствие связи
@@ -111,7 +113,9 @@ void GetTimestamp(FILEIO_TIMESTAMP * timeStamp)
 
 	dateTime.bcdFormat = false;
 
-	RTCC_TimeGet(&dateTime);
+	/* MY: неадаптированная конфигурация */
+	// RTCC_TimeGet(&dateTime);	
+	RTCC_BuildTimeGet(&dateTime); // TODO: подмена таймера временем компиляции (заглушка)
 
 	timeStamp->timeMs = 0;
 	timeStamp->time.bitfield.hours = dateTime.hour;
@@ -122,7 +126,6 @@ void GetTimestamp(FILEIO_TIMESTAMP * timeStamp)
 	timeStamp->date.bitfield.month = dateTime.month;
 	// Years in the RTCC module go from 2000 to 2099.  Years in the FAT file system go from 1980-2108.
 	timeStamp->date.bitfield.year = dateTime.year + 20;
-	;
 }
 //------------------------------------------------------------------------------
 
