@@ -3,6 +3,8 @@
 #include <string.h>
 #include <xc.h>
 
+#include <stdio.h>
+
 #include "main.h"
 #include "system.h"
 #include "rtcc.h"
@@ -30,7 +32,7 @@ int main(void)
 
 	SYSTEM_Initialize();
 
-	/* TODO: íåàäàïòèðîâàííàÿ êîíôèãóðàöèÿ
+	/* TODO: Ð½ÐµÐ°Ð´Ð°Ð¿Ñ‚Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ð°Ñ ÐºÐ¾Ð½Ñ„Ð¸Ð³ÑƒÑ€Ð°Ñ†Ð¸Ñ
 	BSP_RTCC_DATETIME dateTime;
 	dateTime.bcdFormat = false;
 	RTCC_BuildTimeGet(&dateTime);
@@ -47,13 +49,13 @@ int main(void)
 	// Register the GetTimestamp function as the timestamp source for the library.
 	FILEIO_RegisterTimestampGet(GetTimestamp);
 
-	// TODO: ÷òî-òî Âîâèíî...
-	//    T1initial(); // òàéìåð âðåìåíè
+	// TODO: Ñ‡Ñ‚Ð¾-Ñ‚Ð¾ Ð’Ð¾Ð²Ð¸Ð½Ð¾...
+	//    T1initial(); // Ñ‚Ð°Ð¹Ð¼ÐµÑ€ Ð²Ñ€ÐµÐ¼ÐµÐ½Ð¸
 	//    T2initial(); // RS-485
-	//    T4initial(); // îòñòóòñòâèå ñâÿçè
-	//    RS485_initial(); // èíèöèàëèçàöèÿ ïîðòà UART
+	//    T4initial(); // Ð¾Ñ‚ÑÑ‚ÑƒÑ‚ÑÑ‚Ð²Ð¸Ðµ ÑÐ²ÑÐ·Ð¸
+	//    RS485_initial(); // Ð¸Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð°Ñ†Ð¸Ñ Ð¿Ð¾Ñ€Ñ‚Ð° UART
 
-	const char sampleData[8] = __TIME__;
+	char sampleData[11];
 
 	FILEIO_ERROR_TYPE error;	
 
@@ -64,7 +66,7 @@ int main(void)
 		switch (moduleState)
 		{
 			case MODULE_STATE_NO_CARD:
-				// TODO: Èñêàòü êàðòó
+				// TODO: Ð˜ÑÐºÐ°Ñ‚ÑŒ ÐºÐ°Ñ€Ñ‚Ñƒ
 				// Loop on this function until the SD Card is detected.
 				if (FILEIO_MediaDetect(&gSdDrive, &sdCardMediaParameters) == true)
 				{
@@ -72,14 +74,16 @@ int main(void)
 				}
 				break;
 			case MODULE_STATE_CARD_DETECTED:
-				// Èíèöèàëèçèðîâàòü êàðòó
+				// Ð˜Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ ÐºÐ°Ñ€Ñ‚Ñƒ
 				error = RINGSTORE_Open(&rStore, &gSdDrive, &sdCardMediaParameters);
 				moduleState = error ?
 						MODULE_STATE_FAILED : MODULE_STATE_CARD_INITIALIZED;
 				break;
 			case MODULE_STATE_CARD_INITIALIZED:
-				// Çàïèñàòü áóôåð, åñëè îí ãîòîâ
-				error = RINGSTORE_StorePacket(&rStore, (const uint8_t*) sampleData, 8);
+				// Ð—Ð°Ð¿Ð¸ÑÐ°Ñ‚ÑŒ Ð±ÑƒÑ„ÐµÑ€, ÐµÑÐ»Ð¸ Ð¾Ð½ Ð³Ð¾Ñ‚Ð¾Ð²
+				sprintf(sampleData, "%08luBIN", rStore.CUR_FileNameIndex % 100000000);
+				
+				error = RINGSTORE_StorePacket(&rStore, (const uint8_t*) sampleData, strlen(sampleData));
 				if (error != FILEIO_ERROR_NONE)
 				{
 					moduleState = RINGSTORE_TryClose(&rStore) ?
@@ -94,7 +98,7 @@ int main(void)
 				}
 				break;
 			default:
-				// TODO: Ñèãíàëèçèðîâàòü îá àâàðèéíîé ñèòóàöèè è îáðàáîòàòü å¸
+				// TODO: Ð¡Ð¸Ð³Ð½Ð°Ð»Ð¸Ð·Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ Ð¾Ð± Ð°Ð²Ð°Ñ€Ð¸Ð¹Ð½Ð¾Ð¹ ÑÐ¸Ñ‚ÑƒÐ°Ñ†Ð¸Ð¸ Ð¸ Ð¾Ð±Ñ€Ð°Ð±Ð¾Ñ‚Ð°Ñ‚ÑŒ ÐµÑ‘
 				RINGSTORE_TryClose(&rStore);
 				if (FILEIO_MediaDetect(&gSdDrive, &sdCardMediaParameters) == false)
 				{
@@ -113,9 +117,9 @@ void GetTimestamp(FILEIO_TIMESTAMP * timeStamp)
 
 	dateTime.bcdFormat = false;
 
-	/* MY: íåàäàïòèðîâàííàÿ êîíôèãóðàöèÿ */
+	/* MY: Ð½ÐµÐ°Ð´Ð°Ð¿Ñ‚Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ð°Ñ ÐºÐ¾Ð½Ñ„Ð¸Ð³ÑƒÑ€Ð°Ñ†Ð¸Ñ */
 	// RTCC_TimeGet(&dateTime);	
-	RTCC_BuildTimeGet(&dateTime); // TODO: ïîäìåíà òàéìåðà âðåìåíåì êîìïèëÿöèè (çàãëóøêà)
+	RTCC_BuildTimeGet(&dateTime); // TODO: Ð¿Ð¾Ð´Ð¼ÐµÐ½Ð° Ñ‚Ð°Ð¹Ð¼ÐµÑ€Ð° Ð²Ñ€ÐµÐ¼ÐµÐ½ÐµÐ¼ ÐºÐ¾Ð¼Ð¿Ð¸Ð»ÑÑ†Ð¸Ð¸ (Ð·Ð°Ð³Ð»ÑƒÑˆÐºÐ°)
 
 	timeStamp->timeMs = 0;
 	timeStamp->time.bitfield.hours = dateTime.hour;

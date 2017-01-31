@@ -66,7 +66,7 @@ void SYSTEM_Initialize(void)
 	while (OSCCONbits.LOCK != 1)
 	{
 	};
-	AD1PCFGL = 0xFFFF; // конфигурация цифровые I\O
+	AD1PCFGL = 0xFFFF; // РєРѕРЅС„РёРіСѓСЂР°С†РёСЏ С†РёС„СЂРѕРІС‹Рµ I\O
 	TRISAbits.TRISA0 = 0; /*led1*/
 	TRISAbits.TRISA1 = 0; /*led2*/
 	TRISAbits.TRISA4 = 1; //vdd_on_off
@@ -77,7 +77,7 @@ void SYSTEM_Initialize(void)
 	TRISBbits.TRISB7 = 0; /*de rs485*/
 	TRISBbits.TRISB6 = 0; /*out rs485*/
 	TRISBbits.TRISB8 = 1; /*in rs485*/
-	TRISBbits.TRISB15 = 1; /*input mikric (0 - закрыт, 1 - открыт)*/
+	TRISBbits.TRISB15 = 1; /*input mikric (0 - Р·Р°РєСЂС‹С‚, 1 - РѕС‚РєСЂС‹С‚)*/
 
 	USER_SetLedRed(false);
 	USER_SetLedBlue(false);
@@ -145,12 +145,12 @@ inline void USER_SdSpiSetCs(uint8_t a)
 
 inline bool USER_SdSpiGetCd(void)
 {
-	// На этих модулях RB4 почему-то всегда в логическом нуле,
-	// поэтому пытаться
+	// РќР° СЌС‚РёС… РјРѕРґСѓР»СЏС… RB4 РїРѕС‡РµРјСѓ-С‚Рѕ РІСЃРµРіРґР° РІ Р»РѕРіРёС‡РµСЃРєРѕРј РЅСѓР»Рµ,
+	// РїРѕСЌС‚РѕРјСѓ РїС‹С‚Р°С‚СЊСЃСЏ
 	return (
-			!PORTBbits.RB4 // Наличие(0)/отсутствие(1) карты
-			&& !PORTBbits.RB15 // Микроконтактное устройство открыто(1)/закрыто(0)
-			&& PORTAbits.RA4 // Внешнее(1)/внутреннее(0) питание
+			!PORTBbits.RB4 // РќР°Р»РёС‡РёРµ(0)/РѕС‚СЃСѓС‚СЃС‚РІРёРµ(1) РєР°СЂС‚С‹
+			&& !PORTBbits.RB15 // РњРёРєСЂРѕРєРѕРЅС‚Р°РєС‚РЅРѕРµ СѓСЃС‚СЂРѕР№СЃС‚РІРѕ РѕС‚РєСЂС‹С‚Рѕ(1)/Р·Р°РєСЂС‹С‚Рѕ(0)
+			&& PORTAbits.RA4 // Р’РЅРµС€РЅРµРµ(1)/РІРЅСѓС‚СЂРµРЅРЅРµРµ(0) РїРёС‚Р°РЅРёРµ
 			) ? true : false;
 }
 
