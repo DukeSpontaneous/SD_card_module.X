@@ -3,10 +3,10 @@
 #include "fileio.h"
 #include "sd_spi.h"
 
-// Объявим возможные состояния работы модуля
-
 typedef enum
 {
+	// Объявим возможные состояния работы модуля:
+	
 	MODULE_STATE_NO_CARD,
 	MODULE_STATE_CARD_DETECTED,
 	MODULE_STATE_CARD_INITIALIZED,

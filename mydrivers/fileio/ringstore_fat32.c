@@ -26,12 +26,13 @@ static uint32_t MATH_DivisionCeiling(uint32_t divides, uint32_t divisor)
 }
 
 // ******************************************************************
-//Функция: вычислить максимальное число файлов MY_FILE (FAT32),
-//которые можно разместить в одной директории на запоминающем устройстве.
-//Аргументы: unsigned long totalSectorsCount - число доступных секторов
-//unsigned char sectorPerCluster - размер кластера в секторах
-//return: unsigned long (максимальное число файлов,
-//которое можно разместить на ЗУ; 0 при недопустимых аргументах)
+// Функция: вычислить максимальное число файлов MY_FILE (FAT32),
+// которые можно разместить в одной директории на запоминающем устройстве.
+// Аргументы: unsigned long totalSectorsCount - число доступных секторов
+// unsigned char sectorPerCluster - размер кластера в секторах
+// ******************************************************************
+// return: uint32_t (максимальное число файлов, которое можно
+// разместить на ЗУ; при недопустимых аргументах возвращает 0)
 // ******************************************************************
 
 static uint32_t RINGSTORE_CalcMaxFilesCount(const uint32_t totalDataSectorsCount, const uint8_t sectorPerCluster)
@@ -73,7 +74,7 @@ static uint32_t RINGSTORE_CalcMaxFilesCount(const uint32_t totalDataSectorsCount
 // ней списка коротких (FAT 32 Byte Directory Entry) записей файлов
 // количеством totalSectorsCount при размере кластера sectorPerCluster.
 // ******************************************************************
-// Возвращает unsigned long необходимую длину цепочки кластеров
+// Возвращает uint16_t необходимую длину цепочки кластеров
 // корневой директории (Root Directory).
 // ******************************************************************
 
@@ -113,15 +114,6 @@ static void RINGSTORE_SetWrtTime(FILEIO_DIRECTORY_ENTRY *entry, const FILEIO_TIM
 }
 //------------------------------------------------------------------------------
 
-// ******************************************************************
-//Функция: получить LOGICAL_FAT32_DRIVE_INFO структуру логического
-//разрела MyFAT32.
-//Аргументы: LOGICAL_FAT32_DRIVE_INFO *fsInfo -
-//физическая адресация логических элементов
-//return: bool (флаг успеха;
-//true/false - соответствие/несоответствие формату myFAT32)
-// ******************************************************************
-
 static void RINGSTORE_UpdateCreateFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, const RINGSTORE_OBJECT *rStore, const FILEIO_TIMESTAMP *time)
 {
 	sprintf(dirEntry->name, "%08luBIN", rStore->CUR_FileNameIndex % 100000000);
@@ -153,7 +145,7 @@ static void RINGSTORE_UpdateWriteFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, con
 }
 //------------------------------------------------------------------------------
 
-static void RINGSTORE_UpdateDriveFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, const RINGSTORE_OBJECT *rStore, const FILEIO_TIMESTAMP *time)
+static void RINGSTORE_UpdateDriveFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, const FILEIO_TIMESTAMP *time)
 {
 	memset(dirEntry, 0, sizeof (FILEIO_DIRECTORY_ENTRY));
 	sprintf(dirEntry->name, "LOG_STORAGE");
@@ -254,7 +246,13 @@ static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStore)
 }
 //------------------------------------------------------------------------------
 
-// Записать буфер логирования на ПЗУ и обновить положение курсора
+// ******************************************************************
+// Функция: записать буфер логирования на ПЗУ и обновить курсор.
+// Аргументы: RINGSTORE_OBJECT *rStore - объект файлового кольца.
+// ******************************************************************
+// return: FILEIO_ERROR_TYPE
+// (код ошибки; возвращает FILEIO_ERROR_NONE при штатном завершении)
+// ******************************************************************
 
 static FILEIO_ERROR_TYPE RINGSTORE_StepToNextSector(RINGSTORE_OBJECT *rStore)
 {
@@ -343,13 +341,6 @@ static FILEIO_ERROR_TYPE RINGSTORE_SaveAndCloseFile(RINGSTORE_OBJECT *rStore)
 	return FILEIO_ERROR_NONE;
 }
 
-// ******************************************************************
-//Функция: рассчитать/установить параметры подключенного SD-накопителя,
-//на котором ожидается обнаружить FAT32-совместимую файловую систему.
-//Аргументы: LOGICAL_MY_FAT32_DRIVE_INFO *myInfo - приёмник параметров 
-//return: bool (флаг успеха; возвращает true при штатном завершении)
-// ******************************************************************
-
 static FILEIO_ERROR_TYPE RINGSTORE_GetInfo(RINGSTORE_OBJECT *rStore)
 {
 	uint8_t _sectorsPerCluster = drive->sectorsPerCluster;
@@ -392,17 +383,17 @@ static FILEIO_ERROR_TYPE RINGSTORE_GetInfo(RINGSTORE_OBJECT *rStore)
 //------------------------------------------------------------------------------
 
 // ******************************************************************
-//Функция: проверить файловую систему на соответствие
-//FAT32-совместимому формату myFAT (пользовательскому),
-//подразумевающему использование доступного пространства памяти
-//исключительно для хранения максимального числа файлов MY_FILE
-//(файлы c коротким именем, занимающие по 10 Мб, цепочки кластеров
-//которых непрерывны и выровненны по секторам таблиц FAT).
-//Помимо всего вышеперечисленного устанавливает курсор записи.
-//Аргументы: LOGICAL_MY_FAT32_DRIVE_INFO *myInfo -
-//информация о логическом разделе
-//return: MY_FAT32_ERROR (код завершения проверки на
-//соответствие/несоответствие формату myFAT)
+// Функция: проверить файловую систему на соответствие
+// FAT32-совместимому формату RINGSTORE (пользовательскому),
+// подразумевающему использование доступного пространства памяти
+// исключительно для хранения максимального числа файлов MY_FILE
+// (файлы c коротким именем, занимающие по 10 Мб, цепочки кластеров
+// которых непрерывны и выровненны по секторам таблиц FAT).
+// Помимо всего вышеперечисленного устанавливает курсор записи.
+// Аргументы:  RINGSTORE_OBJECT *rStore - объект файлового кольца.
+// ******************************************************************
+// return: FILEIO_ERROR_TYPE (код завершения проверки на
+// соответствие/несоответствие формату RINGSTORE)
 // ******************************************************************
 
 static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
@@ -425,7 +416,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 	// хранящую цепочку корневой директории,
 	// на предмет соответствия нашему формату
 	uint32_t fatSectorN, fatAbsoluteEntryN;
-	uint32_t *fat = (uint32_t*)(rStore->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
+	uint32_t *fat = (uint32_t*) (rStore->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
 
 	uint8_t fatN;
 	uint16_t fatSectorEntryN;
@@ -664,17 +655,17 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 //------------------------------------------------------------------------------
 
 // ******************************************************************
-//Функция: отформатировать файловую систему FAT32 в соответствии с
-//FAT32-совместимым форматом myFAT (пользовательским),
-//подразумевающим использование доступного пространства памяти
-//исключительно для хранения максимального числа файлов MY_FILE
-//(файлы c коротким именем, занимающие по 10 Мб, цепочки кластеров
-//которых непрерывны и выровненны по секторам таблиц FAT).
-//Устанавливает курсор записи на исходную позицию.
-//Аргументы: LOGICAL_MY_FAT32_DRIVE_INFO *lDriveInfo -
-//информация о логическом разделе
-//return: MY_FAT32_ERROR (код завершения проверки на
-//соответствие/несоответствие формату myFAT)
+// Функция: отформатировать файловую систему FAT32 в соответствии с
+// FAT32-совместимым форматом RINGSTORE (пользовательским),
+// подразумевающим использование доступного пространства памяти
+// исключительно для хранения максимального числа файлов MY_FILE
+// (файлы c коротким именем, занимающие по 10 Мб, цепочки кластеров
+// которых непрерывны и выровненны по секторам таблиц FAT).
+// Устанавливает курсор записи на исходную позицию.
+// Аргументы: RINGSTORE_OBJECT *rStore - объект файлового кольца.
+// ******************************************************************
+// return: FILEIO_ERROR_TYPE
+// (код ошибки; возвращает FILEIO_ERROR_NONE при штатном завершении)
 // ******************************************************************
 
 static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
@@ -689,7 +680,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 	// хранящую цепочку корневой директории,
 	// на предмет соответствия нашему формату
 	uint32_t fatSectorN, fatSectorEntryN, fatAbsoluteEntryN;
-	uint32_t *fat = (uint32_t*)(rStore->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
+	uint32_t *fat = (uint32_t*) (rStore->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
 
 	uint8_t fatN;
 
@@ -800,7 +791,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 		{
 			if (!FILEIO_SD_SectorWrite(drive->mediaParameters,
 					fatN * _fatSectorCount + fatSectorN, (uint8_t*) fat, false))
-				return FILEIO_ERROR_WRITE;			
+				return FILEIO_ERROR_WRITE;
 		}
 
 		// Основной выход...
@@ -848,15 +839,6 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 }
 //------------------------------------------------------------------------------
 
-// ******************************************************************
-//Функция: передать очередной пакет для записи на SD-накопитель
-//(отправляется на запись через промежуточный буфер, который отправляется
-//на запись только тогда, когда в него больше не помещается новый пакет).
-//Аргументы: const uint8_t packet[] - указатель на пакет для передачи
-//uint8_t pSize - размер пакета для передачи
-//return: bool (флаг успеха; возвращает true при штатном завершении)
-// ******************************************************************
-
 FILEIO_ERROR_TYPE RINGSTORE_StorePacket(RINGSTORE_OBJECT *rStore, const uint8_t packet[], uint8_t pSize)
 {
 	FILEIO_ERROR_TYPE error;
@@ -892,7 +874,7 @@ FILEIO_ERROR_TYPE RINGSTORE_Open(RINGSTORE_OBJECT *rStore, const FILEIO_DRIVE_CO
 			return FILEIO_ERROR_UNINITIALIZED;
 
 	FILEIO_ERROR_TYPE error;
-	
+
 	error = FILEIO_DriveMount('A', driveConfig, mediaParameters);
 	if (error != FILEIO_ERROR_NONE)
 		return error;
@@ -916,11 +898,6 @@ FILEIO_ERROR_TYPE RINGSTORE_Open(RINGSTORE_OBJECT *rStore, const FILEIO_DRIVE_CO
 	}
 }
 //------------------------------------------------------------------------------
-
-// ******************************************************************
-//Функция: 
-//return: 
-// ******************************************************************
 
 FILEIO_ERROR_TYPE RINGSTORE_TryClose(RINGSTORE_OBJECT *rStore)
 {

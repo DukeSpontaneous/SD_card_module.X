@@ -5,7 +5,8 @@
         <group>
             <file>file:/D:/Projects/GitHub/SD_card_module.X/mydrivers/fileio/ringstore_fat32.c</file>
             <file>file:/D:/Projects/GitHub/SD_card_module.X/app/main.c</file>
-            <file>file:/D:/Projects/GitHub/SD_card_module.X/framework/fileio/src/fileio_private.h</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/app/main.h</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/mydrivers/fileio/ringstore_fat32.h</file>
         </group>
     </open-files>
 </project-private>

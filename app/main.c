@@ -105,7 +105,7 @@ int main(void)
 					moduleState = MODULE_STATE_NO_CARD;
 				}
 				break;
-
+				
 		}
 	}
 }
