@@ -85,7 +85,7 @@ void SYSTEM_Initialize(void)
     USER_SetLedRed(false);
     USER_SetLedBlue(false);
     USER_SetLedWhite(false);
-    RS485_initial();
+    RS485_Initialize();
 }
 
 void USER_SdSpiConfigurePins(void)

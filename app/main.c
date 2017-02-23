@@ -4,7 +4,6 @@ extern FILEIO_SD_DRIVE_CONFIG sdCardMediaParameters;
 
 MODULE_STATE moduleState;
 RINGSTORE_OBJECT rStore;
-uint32_t globalSecondsTime1980;
 
 // The gSDDrive structure allows the user to specify which set of driver functions should be used by the
 // FILEIO library to interface to the drive.
@@ -21,6 +20,7 @@ const FILEIO_DRIVE_CONFIG gSdDrive = {
 
 int main(void)
 {
+	SYSTEM_TIME_Initialize();
 	SYSTEM_Initialize();
 
 	// Initialize the library
@@ -38,8 +38,7 @@ int main(void)
 	//    T4initial(); // отстутствие связи
 	//    RS485_initial(); // инициализация порта UART
 
-	char sampleData[11];
-	globalSecondsTime1980 = 0;
+	char sampleData[11];	
 
 	FILEIO_ERROR_TYPE error;
 
@@ -104,27 +103,6 @@ int main(void)
 				break;
 		}
 	}
-}
-//------------------------------------------------------------------------------
-
-void GetTimestamp(FILEIO_TIMESTAMP * timeStamp)
-{
-	struct tm * timeinfo;
-	// Перевод секунд от 1980 к секундам от 1970
-	// (10 лет и два високосных дня)
-	time_t rawtime = globalSecondsTime1980 - 315532800;
-
-	timeinfo = localtime(&rawtime);
-
-	timeStamp->timeMs = 0;
-	timeStamp->time.bitfield.hours = timeinfo->tm_hour;
-	timeStamp->time.bitfield.minutes = timeinfo->tm_min;
-	timeStamp->time.bitfield.secondsDiv2 = timeinfo->tm_sec / 2;
-
-	timeStamp->date.bitfield.day = timeinfo->tm_mday;
-	timeStamp->date.bitfield.month = timeinfo->tm_mon;
-	// Years in the FAT file system go from 1980-2108.
-	timeStamp->date.bitfield.year = timeinfo->tm_year - 80;
 }
 //------------------------------------------------------------------------------
 

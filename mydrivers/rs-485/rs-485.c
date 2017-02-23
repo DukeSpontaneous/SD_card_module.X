@@ -1,14 +1,12 @@
 #include "rs-485.h"
 
-unsigned int num1, num1_p;
-
 StatusRX statusRX;
 StatusTR statusTR;
 
 unsigned char buff_rx[sizerxbuff];
 unsigned char buff_tr[30];
 
-void RS485_initial(void)// Инициализация порта UART
+void RS485_Initialize(void)// Инициализация порта UART
 {
 	RPOR3bits.RP6R = 3; // TX1
 	RPINR18 = 8; // RX1 RP8 uart1
@@ -61,25 +59,8 @@ void RS485_1_TR(void)// Передача по UART1
 			}
 		}
 	}
+	
 	IEC0bits.U1TXIE = 1;
-}
-//------------------------------------------------------------------------------
-
-void turn_buffer(unsigned char j) // Отправка буффера данных
-{
-	statusTR.k_vo_na_peredachu = j; // устанавливаем количество байт для передачи
-	IEC0bits.U1RXIE = 0;
-	switch (statusTR.time) // проверка на минимальное время между посылками
-	{
-		case 0: // время меньше минимально допустимого
-			statusTR.turn = 1; //есть данные для отправки, данные поставлены в очередь
-			break;
-		case 1: // время больше минимально допустимого
-			statusTR.turn = 0; // сброс очереди на отправку
-			statusTR.tr_on = 1; // передатчик занят
-			RS485_1_TR(); // отправляем данные
-			break;
-	}
 }
 //------------------------------------------------------------------------------
 
@@ -153,26 +134,17 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void) // Функц�
 			{
 raschet_crc:
 				U1STAbits.URXISEL1 = 1; // Прерывание по 4 байта
-				statusRX.crc = Crc8(buff_rx, statusRX.k_vo_priniatix - 1); // Вычисляем контрольную сумму
-				if (statusRX.crc == buff_rx[statusRX.k_vo_priniatix - 1]) // Совпала
+				statusRX.crc = Crc8(buff_rx, statusRX.k_vo_priniatix - 1); // Вычисляем CRC
+				if (statusRX.crc == buff_rx[statusRX.k_vo_priniatix - 1]) // Совпал
 				{
 					PR2 = timetr; // Ожидание разрешения передачи
 					statusRX.status = 0; // Приём завершился удачно
 					statusRX.k_vo_priniatix = 0;
-
-					switch (statusRX.command) // Обработка полученных данных
-					{
-						case SHUTTLE_SYS_CMD_FLASH_INITIAL:
-
-							break;
-						case SHUTTLE_SYS_CMD_FLASH_WRITE:
-
-							break;
-						default:
-							
-							break;
-					}
-				} else// crc не совпала
+					
+					SLAVE_SD_MasterQueryProcessing(buff_rx, buff_tr);
+					send_answer_status();				
+					
+				} else// CRC не совпал
 				{
 					statusRX.status = 0;
 					statusRX.k_vo_priniatix = 0;
@@ -284,52 +256,70 @@ void __attribute__((interrupt, auto_psv)) _T5Interrupt(void) // Функция �
 }
 //------------------------------------------------------------------------------
 
-void status(void)
+void turn_tr_buffer(uint8_t j) // Отправка буффера данных
+{
+	statusTR.k_vo_na_peredachu = j; // Устанавливаем количество байт для передачи
+	IEC0bits.U1RXIE = 0;
+	switch (statusTR.time) // Проверка на минимальное время между посылками
+	{
+		case 0: // Время меньше минимально допустимого
+			statusTR.turn = 1; // Есть данные для отправки, данные поставлены в очередь
+			break;
+		case 1: // Время больше минимально допустимого
+			statusTR.turn = 0; // Сброс очереди на отправку
+			statusTR.tr_on = 1; // Передатчик занят
+			RS485_1_TR(); // Отправляем данные
+			break;
+	}
+}
+//------------------------------------------------------------------------------
+
+void send_answer_status()
 {
 	struct_flags_flash flags_flash;
 	getSDFlags(&flags_flash);
 
 	uint32_t totalMemory, freeMemory, freeClusters, sectorsize;
 
-	sectorsize = FSectorSize(); //Делёный на 256
+	sectorsize = FSectorSize(); // Делёный на 256
 
-	totalMemory = (sectorsize * FTotalClusters()) >> 2; //Общий объём флеш в Kb (делёный на 4)
+	totalMemory = (sectorsize * FTotalClusters()) >> 2; // Общий объём флеш в Kb (делёный на 4)
 
-	//Общее деление на 1024
+	// Общее деление на 1024
 
 	// TODO: не очень понятно, зачем об этом знать мастер-модулю,
 	// в принципе этот параметр нужно будет убрать,
 	// а пока, видимо, нужно поставить заглушку.
-	freeClusters = FgetSetFreeCluster(); //Чтение из переменной обновляемой 1 раз в сек.
+	freeClusters = FgetSetFreeCluster(); // Чтение из переменной обновляемой 1 раз в сек.
 	if (freeClusters == 0xffffffff)
-		freeClusters = 0; //Ошибка
-	freeMemory = (sectorsize * freeClusters) >> 2; //Общий объём свободной памяти флеш в Kb
+		freeClusters = 0; // Ошибка
+	freeMemory = (sectorsize * freeClusters) >> 2; // Общий объём свободной памяти флеш в Kb
 
-	buff_tr[0] = MODULE_ADDRESS_MASTER; //0xFF
-	buff_tr[1] = MODULE_ADDRESS_SD; //0x76
-	buff_tr[2] = 0x09; //Количество байт 
-	buff_tr[3] = flags_flash.char_flags; //Stat
+	buff_tr[0] = MODULE_ADDRESS_MASTER; // 0xFF
+	buff_tr[1] = MODULE_ADDRESS_SD; // 0x76
+	buff_tr[2] = 0x09; // Количество байт 
+	buff_tr[3] = 0x0C;//flags_flash.char_flags; // Ожидается 0x58
 
-	//Общее количество в Kb флеш
-	buff_tr[4] = totalMemory >> 24; //Со старшего байта
+	// Общее количество в Kb флеш
+	buff_tr[4] = totalMemory >> 24; // Со старшего байта
 	buff_tr[5] = totalMemory >> 16;
 	buff_tr[6] = totalMemory >> 8;
 	buff_tr[7] = totalMemory;
 
-	//Свободное количество в Kb флеш
-	buff_tr[8] = freeMemory >> 24; //Со старшего байта
+	// Свободное количество в Kb флеш
+	buff_tr[8] = freeMemory >> 24; // Со старшего байта
 	buff_tr[9] = freeMemory >> 16;
 	buff_tr[10] = freeMemory >> 8;
 	buff_tr[11] = freeMemory;
 
-	buff_tr[12] = Crc8(buff_tr, 12); // контрольная сумма
+	buff_tr[12] = Crc8(buff_tr, 12); // Контрольная сумма
 
-	turn_buffer(13);
+	turn_tr_buffer(13);
 }
 
 //------------------------------------------------------------------------------
 
-void status_err_read(void)//Ошибка при чтении
+void send_answer_status_err_read(void)// Ошибка при чтении
 {
 	struct_flags_flash flags_flash;
 	getSDFlags(&flags_flash);
@@ -339,7 +329,7 @@ void status_err_read(void)//Ошибка при чтении
 	buff_tr[3] = flags_flash.char_flags; //Stat
 	buff_tr[4] = Crc8(buff_tr, 4); // контрольная сумма
 
-	turn_buffer(5); //Отослать данные
+	turn_tr_buffer(5); //Отослать данные
 }
 
 //------------------------------------------------------------------------------

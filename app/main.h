@@ -6,11 +6,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include <time.h>
 
 #include "system.h"
 #include "fileio.h"
 #include "sd_spi.h"
+
+#include "system_time.h"
 
 #include "ringstore_fat32.h"
 
@@ -25,8 +26,5 @@ typedef enum
 	MODULE_STATE_CARD_INITIALIZED,
 	MODULE_STATE_FAILED
 } MODULE_STATE;
-
-// GetTimestamp will be called by the FILEIO library when it needs a timestamp for a file
-void GetTimestamp(FILEIO_TIMESTAMP * timeStamp);
 
 void SetModuleState(MODULE_STATE state);

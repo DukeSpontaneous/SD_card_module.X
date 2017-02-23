@@ -77,7 +77,7 @@ void getSDFlags(struct_flags_flash *flags_flash)
 	flags_flash->flash_init_answer =
 			(moduleState == MODULE_STATE_FAILED) ? 1 : 0;
 
-	flags_flash->delay_before_init = 0;
+	flags_flash->delay_before_init = 1;
 
 	// Флаг управления критической секцией главного цикла.
 	// Значение 1 свидетельствует о том, что идёт запись на SD-карту.

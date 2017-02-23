@@ -4,6 +4,8 @@
 
 #include "rs_legasy.h"
 #include "timers.h"
+#include "system_time.h"
+#include "slave_modul_sd.h"
 
 #define R_T	LATBbits.LATB7 //de RS485
 
@@ -14,12 +16,6 @@ typedef enum
 	MODULE_ADDRESS_MASTER = 0xFF // Адрес мастера
 } MODULE_ADDRESS;
 
-typedef enum
-{
-	// Команды системы управления самоходным вагоном:	
-	SHUTTLE_SYS_CMD_FLASH_INITIAL = 0x80,
-	SHUTTLE_SYS_CMD_FLASH_WRITE = 0x81
-} SHUTTLE_SYSTEM_CMD;
 
 #define FCY				40000000UL
 #define BAUDRATE		57600
@@ -75,7 +71,9 @@ typedef struct
 } StatusRX;
 //------------------------------------------------------------------------------
 
-void RS485_initial(void);
+void RS485_Initialize(void);
 unsigned char Crc8(unsigned char *pcBlock, unsigned char len);
 void RS485_1_TR(void);
-void turn_buffer(unsigned char j);
+
+void turn_tr_buffer(unsigned char j);
+void send_answer_status();

@@ -11,6 +11,7 @@
                          projectFiles="true">
             <itemPath>app/system_config/pic24hj128gp502_sd_module/drv_spi_config.h</itemPath>
             <itemPath>app/system_config/pic24hj128gp502_sd_module/system.h</itemPath>
+            <itemPath>app/system_config/pic24hj128gp502_sd_module/system_time.h</itemPath>
           </logicalFolder>
         </logicalFolder>
         <itemPath>app/main.h</itemPath>
@@ -42,6 +43,13 @@
           <itemPath>mydrivers/timers/timers.h</itemPath>
         </logicalFolder>
       </logicalFolder>
+      <logicalFolder name="myprotocols" displayName="myprotocols" projectFiles="true">
+        <logicalFolder name="shuttle_control_system"
+                       displayName="shuttle_control_system"
+                       projectFiles="true">
+          <itemPath>myprotocols/shuttle_control_system/slave_modul_sd .h</itemPath>
+        </logicalFolder>
+      </logicalFolder>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -56,6 +64,7 @@
                          displayName="pic24hj128gp502_sd_module"
                          projectFiles="true">
             <itemPath>app/system_config/pic24hj128gp502_sd_module/system.c</itemPath>
+            <itemPath>app/system_config/pic24hj128gp502_sd_module/system_time.c</itemPath>
           </logicalFolder>
         </logicalFolder>
         <itemPath>app/main.c</itemPath>
@@ -83,6 +92,13 @@
         </logicalFolder>
         <logicalFolder name="timers" displayName="timers" projectFiles="true">
           <itemPath>mydrivers/timers/timers.c</itemPath>
+        </logicalFolder>
+      </logicalFolder>
+      <logicalFolder name="f2" displayName="myprotocols" projectFiles="true">
+        <logicalFolder name="shuttle_control_system"
+                       displayName="shuttle_control_system"
+                       projectFiles="true">
+          <itemPath>myprotocols/shuttle_control_system/slave_modul_sd.c</itemPath>
         </logicalFolder>
       </logicalFolder>
     </logicalFolder>
@@ -148,7 +164,7 @@
         <property key="enable-symbols" value="true"/>
         <property key="enable-unroll-loops" value="false"/>
         <property key="extra-include-directories"
-                  value="app;framework;framework\fileio\src;framework\fileio\inc;app\system_config\pic24hj128gp502_sd_module;framework\driver\spi;framework\fileio\drivers\sd_spi;mydrivers\fileio;mydrivers\rs-485;mydrivers\timers"/>
+                  value="app;framework;framework\fileio\src;framework\fileio\inc;app\system_config\pic24hj128gp502_sd_module;framework\driver\spi;framework\fileio\drivers\sd_spi;mydrivers\fileio;mydrivers\rs-485;mydrivers\timers;myprotocols\shuttle_control_system"/>
         <property key="isolate-each-function" value="false"/>
         <property key="keep-inline" value="false"/>
         <property key="oXC16gcc-align-arr" value="false"/>
