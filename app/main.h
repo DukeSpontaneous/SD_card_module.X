@@ -1,7 +1,20 @@
 #pragma once
 
+#include <xc.h>
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdio.h>
+#include <time.h>
+
+#include "system.h"
 #include "fileio.h"
 #include "sd_spi.h"
+
+#include "ringstore_fat32.h"
+
+#include "rs_legasy.h"
 
 typedef enum
 {

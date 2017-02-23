@@ -19,13 +19,6 @@
         <itemPath>app/sd_spi_config.h</itemPath>
         <itemPath>app/ringstore_fat32_config.h</itemPath>
       </logicalFolder>
-      <logicalFolder name="f2" displayName="bsp" projectFiles="true">
-        <logicalFolder name="f1"
-                       displayName="pic24hj128gp502_sd_module"
-                       projectFiles="true">
-          <itemPath>bsp/pic24hj128gp502_sd_module/rtcc.h</itemPath>
-        </logicalFolder>
-      </logicalFolder>
       <logicalFolder name="f1" displayName="framework" projectFiles="true">
         <logicalFolder name="f1" displayName="driver" projectFiles="true">
           <logicalFolder name="f1" displayName="spi" projectFiles="true">
@@ -40,6 +33,13 @@
       <logicalFolder name="f4" displayName="mydrivers" projectFiles="true">
         <logicalFolder name="f1" displayName="fileio" projectFiles="true">
           <itemPath>mydrivers/fileio/ringstore_fat32.h</itemPath>
+        </logicalFolder>
+        <logicalFolder name="rs-485" displayName="rs-485" projectFiles="true">
+          <itemPath>mydrivers/rs-485/rs-485.h</itemPath>
+          <itemPath>mydrivers/rs-485/rs_legasy.h</itemPath>
+        </logicalFolder>
+        <logicalFolder name="timers" displayName="timers" projectFiles="true">
+          <itemPath>mydrivers/timers/timers.h</itemPath>
         </logicalFolder>
       </logicalFolder>
     </logicalFolder>
@@ -60,13 +60,6 @@
         </logicalFolder>
         <itemPath>app/main.c</itemPath>
       </logicalFolder>
-      <logicalFolder name="f2" displayName="bsp" projectFiles="true">
-        <logicalFolder name="f1"
-                       displayName="pic24hj128gp502_sd_module"
-                       projectFiles="true">
-          <itemPath>bsp/pic24hj128gp502_sd_module/rtcc.c</itemPath>
-        </logicalFolder>
-      </logicalFolder>
       <logicalFolder name="f1" displayName="framework" projectFiles="true">
         <logicalFolder name="f1" displayName="driver" projectFiles="true">
           <logicalFolder name="spi" displayName="spi" projectFiles="true">
@@ -83,6 +76,13 @@
       <logicalFolder name="f4" displayName="mydrivers" projectFiles="true">
         <logicalFolder name="f1" displayName="fileio" projectFiles="true">
           <itemPath>mydrivers/fileio/ringstore_fat32.c</itemPath>
+        </logicalFolder>
+        <logicalFolder name="rs-485" displayName="rs-485" projectFiles="true">
+          <itemPath>mydrivers/rs-485/rs-485.c</itemPath>
+          <itemPath>mydrivers/rs-485/rs_legasy.c</itemPath>
+        </logicalFolder>
+        <logicalFolder name="timers" displayName="timers" projectFiles="true">
+          <itemPath>mydrivers/timers/timers.c</itemPath>
         </logicalFolder>
       </logicalFolder>
     </logicalFolder>
@@ -103,9 +103,9 @@
         <targetDevice>PIC24HJ128GP502</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
-        <platformTool>PICkit3PlatformTool</platformTool>
+        <platformTool>ICD3PlatformTool</platformTool>
         <languageToolchain>XC16</languageToolchain>
-        <languageToolchainVersion>1.30</languageToolchainVersion>
+        <languageToolchainVersion>1.31</languageToolchainVersion>
         <platform>3</platform>
       </toolsSet>
       <compileType>
@@ -148,7 +148,7 @@
         <property key="enable-symbols" value="true"/>
         <property key="enable-unroll-loops" value="false"/>
         <property key="extra-include-directories"
-                  value="app;framework;framework\fileio\src;framework\fileio\inc;app\system_config\pic24hj128gp502_sd_module;framework\driver\spi;framework\fileio\drivers\sd_spi;bsp\pic24hj128gp502_sd_module;mydrivers\fileio"/>
+                  value="app;framework;framework\fileio\src;framework\fileio\inc;app\system_config\pic24hj128gp502_sd_module;framework\driver\spi;framework\fileio\drivers\sd_spi;mydrivers\fileio;mydrivers\rs-485;mydrivers\timers"/>
         <property key="isolate-each-function" value="false"/>
         <property key="keep-inline" value="false"/>
         <property key="oXC16gcc-align-arr" value="false"/>
@@ -176,6 +176,25 @@
       <C30-AR>
         <property key="additional-options-chop-files" value="false"/>
       </C30-AR>
+      <C30-AS>
+        <property key="assembler-symbols" value=""/>
+        <property key="expand-macros" value="false"/>
+        <property key="extra-include-directories-for-assembler" value=""/>
+        <property key="extra-include-directories-for-preprocessor" value=""/>
+        <property key="false-conditionals" value="false"/>
+        <property key="keep-locals" value="false"/>
+        <property key="list-assembly" value="false"/>
+        <property key="list-section-info" value="false"/>
+        <property key="list-source" value="false"/>
+        <property key="list-symbols" value="false"/>
+        <property key="oXC16asm-extra-opts" value=""/>
+        <property key="oXC16asm-list-to-file" value="false"/>
+        <property key="omit-debug-dirs" value="false"/>
+        <property key="omit-forms" value="false"/>
+        <property key="preprocessor-macros" value=""/>
+        <property key="relax" value="false"/>
+        <property key="warning-level" value="emit-warnings"/>
+      </C30-AS>
       <C30-LD>
         <property key="additional-options-use-response-files" value="false"/>
         <property key="boot-eeprom" value="no_eeprom"/>
@@ -267,7 +286,6 @@
         <property key="UART 1" value="true"/>
         <property key="UART 2" value="true"/>
         <property key="debugoptions.useswbreakpoints" value="true"/>
-        <property key="firmware.download.all" value="false"/>
         <property key="hwtoolclock.frcindebug" value="false"/>
         <property key="memories.aux" value="false"/>
         <property key="memories.bootflash" value="false"/>

@@ -114,9 +114,9 @@ static void RINGSTORE_SetWrtTime(FILEIO_DIRECTORY_ENTRY *entry, const FILEIO_TIM
 }
 //------------------------------------------------------------------------------
 
-static void RINGSTORE_UpdateCreateFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, const RINGSTORE_OBJECT *rStore, const FILEIO_TIMESTAMP *time)
+static void RINGSTORE_UpdateCreateFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, const RINGSTORE_OBJECT *rStrg, const FILEIO_TIMESTAMP *time)
 {
-	sprintf(dirEntry->name, "%08luBIN", rStore->CUR_FileNameIndex % 100000000);
+	sprintf(dirEntry->name, "%08luBIN", rStrg->CUR_FileNameIndex % 100000000);
 
 	dirEntry->attributes = FILEIO_ATTRIBUTE_READ_ONLY | FILEIO_ATTRIBUTE_ARCHIVE;
 	dirEntry->reserved0 = 0;
@@ -124,8 +124,8 @@ static void RINGSTORE_UpdateCreateFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, co
 	RINGSTORE_SetCrtTime(dirEntry, time);
 
 	uint32_t fileCluster =
-			rStore->CALC_FirstFileClusterNum +
-			rStore->CUR_FileRootDirIndex * rStore->clusterPerFile;
+			rStrg->CALC_FirstFileClusterNum +
+			rStrg->CUR_FileRootDirIndex * rStrg->clusterPerFile;
 	dirEntry->firstClusterLow = fileCluster;
 	dirEntry->firstClusterHigh = fileCluster >> sizeof (uint16_t) * RINGSTORE_BIT_PER_BYTE;
 
@@ -133,13 +133,13 @@ static void RINGSTORE_UpdateCreateFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, co
 }
 //------------------------------------------------------------------------------
 
-static void RINGSTORE_UpdateWriteFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, const RINGSTORE_OBJECT *rStore, const FILEIO_TIMESTAMP *time)
+static void RINGSTORE_UpdateWriteFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, const RINGSTORE_OBJECT *rStrg, const FILEIO_TIMESTAMP *time)
 {
 	RINGSTORE_SetWrtTime(dirEntry, time);
 
 	dirEntry->fileSize =
-			rStore->CUR_SectorByteNum
-			+ (rStore->CUR_FilePhysicalSectorNum - rStore->PH_ADDR_SectorFirstFile)
+			rStrg->CUR_SectorByteNum
+			+ (rStrg->CUR_FilePhysicalSectorNum - rStrg->PH_ADDR_SectorFirstFile)
 			% RINGSTORE_CONFIG_SECTORS_PER_FILE
 			* FILEIO_CONFIG_MEDIA_SECTOR_SIZE;
 }
@@ -156,11 +156,11 @@ static void RINGSTORE_UpdateDriveFileEntry(FILEIO_DIRECTORY_ENTRY *dirEntry, con
 }
 //------------------------------------------------------------------------------
 
-static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStore)
+static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStrg)
 {
 	uint32_t _firstDataSector = drive->firstDataSector;
 
-	uint32_t indexOfOldEntryInRootDir = 1 + rStore->CUR_FileRootDirIndex;
+	uint32_t indexOfOldEntryInRootDir = 1 + rStrg->CUR_FileRootDirIndex;
 
 	uint8_t indexOfOldEntryInSector =
 			indexOfOldEntryInRootDir % (FILEIO_CONFIG_MEDIA_SECTOR_SIZE / sizeof (FILEIO_DIRECTORY_ENTRY));
@@ -178,15 +178,15 @@ static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStore)
 	FILEIO_TIMESTAMP timeStamp;
 	if (timestampGet != NULL)
 		(*timestampGet)(&timeStamp);
-	RINGSTORE_UpdateWriteFileEntry(&dirEntries[indexOfOldEntryInSector], rStore, &timeStamp);
+	RINGSTORE_UpdateWriteFileEntry(&dirEntries[indexOfOldEntryInSector], rStrg, &timeStamp);
 
-	++(rStore->CUR_FileNameIndex);
-	rStore->CUR_FileNameIndex %= 100000000;
+	++(rStrg->CUR_FileNameIndex);
+	rStrg->CUR_FileNameIndex %= 100000000;
 
-	++(rStore->CUR_FilePhysicalSectorNum);
+	++(rStrg->CUR_FilePhysicalSectorNum);
 
 	uint32_t indexOfNewSectorInRootDir;
-	if (++(rStore->CUR_FileRootDirIndex) == rStore->CALC_maxFilesCount)
+	if (++(rStrg->CUR_FileRootDirIndex) == rStrg->CALC_maxFilesCount)
 	{
 		// Номер очередного файла превышает вычисленный максимум файлов:
 
@@ -196,8 +196,8 @@ static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStore)
 				indexOfOldSectorInRootDir, (uint8_t*) dirEntries, false))
 			return FILEIO_ERROR_WRITE;
 
-		rStore->CUR_FilePhysicalSectorNum = rStore->PH_ADDR_SectorFirstFile;
-		rStore->CUR_FileRootDirIndex = 0;
+		rStrg->CUR_FilePhysicalSectorNum = rStrg->PH_ADDR_SectorFirstFile;
+		rStrg->CUR_FileRootDirIndex = 0;
 
 		indexOfNewSectorInRootDir = _firstDataSector;
 
@@ -205,7 +205,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStore)
 				indexOfNewSectorInRootDir, (uint8_t*) dirEntries))
 			return FILEIO_ERROR_BAD_SECTOR_READ;
 
-		RINGSTORE_UpdateCreateFileEntry(&dirEntries[1], rStore, &timeStamp);
+		RINGSTORE_UpdateCreateFileEntry(&dirEntries[1], rStrg, &timeStamp);
 
 	} else if ((indexOfOldEntryInSector + 1) == FILEIO_CONFIG_MEDIA_SECTOR_SIZE / sizeof (FILEIO_DIRECTORY_ENTRY))
 	{
@@ -226,7 +226,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStore)
 				indexOfNewSectorInRootDir, (uint8_t*) dirEntries))
 			return FILEIO_ERROR_BAD_SECTOR_READ;
 
-		RINGSTORE_UpdateCreateFileEntry(&dirEntries[0], rStore, &timeStamp);
+		RINGSTORE_UpdateCreateFileEntry(&dirEntries[0], rStrg, &timeStamp);
 
 	} else
 	{
@@ -234,7 +234,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStore)
 
 		// Значит очередная запись находится В ТОМ ЖЕ секторе директории,
 		// что и предыдущая (возможно обновить обе записи одним действием)
-		RINGSTORE_UpdateCreateFileEntry(&dirEntries[indexOfOldEntryInSector + 1], rStore, &timeStamp);
+		RINGSTORE_UpdateCreateFileEntry(&dirEntries[indexOfOldEntryInSector + 1], rStrg, &timeStamp);
 
 		indexOfNewSectorInRootDir = indexOfOldSectorInRootDir;
 	}
@@ -254,24 +254,24 @@ static FILEIO_ERROR_TYPE RINGSTORE_StepToNextFile(RINGSTORE_OBJECT *rStore)
 // (код ошибки; возвращает FILEIO_ERROR_NONE при штатном завершении)
 // ******************************************************************
 
-static FILEIO_ERROR_TYPE RINGSTORE_StepToNextSector(RINGSTORE_OBJECT *rStore)
+static FILEIO_ERROR_TYPE RINGSTORE_StepToNextSector(RINGSTORE_OBJECT *rStrg)
 {
-	uint16_t freeBytesIndex = rStore->CUR_SectorByteNum;
+	uint16_t freeBytesIndex = rStrg->CUR_SectorByteNum;
 
 	// Обнулить свободную часть буфера
 	memset(
-			rStore->CUR_LoggingBuffer + freeBytesIndex,
+			rStrg->CUR_LoggingBuffer + freeBytesIndex,
 			0,
 			FILEIO_CONFIG_MEDIA_SECTOR_SIZE - freeBytesIndex);
 
 	if (!FILEIO_SD_SectorWrite(drive->mediaParameters,
-			rStore->CUR_FilePhysicalSectorNum, rStore->CUR_LoggingBuffer, false))
-		return FILEIO_ERROR_WRITE;
-
+			rStrg->CUR_FilePhysicalSectorNum, rStrg->CUR_LoggingBuffer, false))
+		return FILEIO_ERROR_WRITE;	
+	
 	/* Перевод курсора на следующий сектор логического кольца ПЗУ */
 	if (
-			((rStore->CUR_FilePhysicalSectorNum + 1
-			- rStore->PH_ADDR_SectorFirstFile)
+			((rStrg->CUR_FilePhysicalSectorNum + 1
+			- rStrg->PH_ADDR_SectorFirstFile)
 
 			% RINGSTORE_CONFIG_SECTORS_PER_FILE) == 0)
 	{
@@ -280,40 +280,40 @@ static FILEIO_ERROR_TYPE RINGSTORE_StepToNextSector(RINGSTORE_OBJECT *rStore)
 		// делится на длину файла в секторах без остатка,
 		// то это значит, что мы вошли в нулевой сектор следующего файла.
 
-		FILEIO_ERROR_TYPE error = RINGSTORE_StepToNextFile(rStore);
+		FILEIO_ERROR_TYPE error = RINGSTORE_StepToNextFile(rStrg);
 		if (error != FILEIO_ERROR_NONE)
 			return error;
 	} else
 	{
 		// Если следующий сектор принадлежит текущему файлу
-		++(rStore->CUR_FilePhysicalSectorNum);
+		++(rStrg->CUR_FilePhysicalSectorNum);
 	}
 
 	/* Перевод курсора на исходный байт нового сектора */
-	rStore->CUR_SectorByteNum = 0;
+	rStrg->CUR_SectorByteNum = 0;
 
 	return FILEIO_ERROR_NONE;
 }
 //------------------------------------------------------------------------------
 
-static FILEIO_ERROR_TYPE RINGSTORE_SaveAndCloseFile(RINGSTORE_OBJECT *rStore)
+static FILEIO_ERROR_TYPE RINGSTORE_SaveAndCloseFile(RINGSTORE_OBJECT *rStrg)
 {
 	/*1 НАЧАЛО: Часть сохранения сектора*/
-	uint16_t freeBytesIndex = rStore->CUR_SectorByteNum;
+	uint16_t freeBytesIndex = rStrg->CUR_SectorByteNum;
 
 	// На всякий случай обнулить свободную часть записываемого буфера
 	memset(
-			rStore->CUR_LoggingBuffer + freeBytesIndex,
+			rStrg->CUR_LoggingBuffer + freeBytesIndex,
 			0,
 			FILEIO_CONFIG_MEDIA_SECTOR_SIZE - freeBytesIndex);
 
 	if (!FILEIO_SD_SectorWrite(drive->mediaParameters,
-			rStore->CUR_FilePhysicalSectorNum, rStore->CUR_LoggingBuffer, false))
+			rStrg->CUR_FilePhysicalSectorNum, rStrg->CUR_LoggingBuffer, false))
 		return FILEIO_ERROR_WRITE;
 	/*1 КОНЕЦ: Часть сохранения сектора*/
 
 	/*2 НАЧАЛО: Часть обновления записи*/
-	uint32_t indexOfOldEntryInRootDir = 1 + rStore->CUR_FileRootDirIndex;
+	uint32_t indexOfOldEntryInRootDir = 1 + rStrg->CUR_FileRootDirIndex;
 
 	uint8_t indexOfOldEntryInSector =
 			indexOfOldEntryInRootDir % (FILEIO_CONFIG_MEDIA_SECTOR_SIZE / sizeof (FILEIO_DIRECTORY_ENTRY));
@@ -331,7 +331,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_SaveAndCloseFile(RINGSTORE_OBJECT *rStore)
 	FILEIO_TIMESTAMP timeStamp;
 	if (timestampGet != NULL)
 		(*timestampGet)(&timeStamp);
-	RINGSTORE_UpdateWriteFileEntry(&dirEntries[indexOfOldEntryInSector], rStore, &timeStamp);
+	RINGSTORE_UpdateWriteFileEntry(&dirEntries[indexOfOldEntryInSector], rStrg, &timeStamp);
 
 	if (!FILEIO_SD_SectorWrite(drive->mediaParameters,
 			indexOfOldSectorInRootDir, (uint8_t*) dirEntries, false))
@@ -341,7 +341,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_SaveAndCloseFile(RINGSTORE_OBJECT *rStore)
 	return FILEIO_ERROR_NONE;
 }
 
-static FILEIO_ERROR_TYPE RINGSTORE_GetInfo(RINGSTORE_OBJECT *rStore)
+static FILEIO_ERROR_TYPE RINGSTORE_GetInfo(RINGSTORE_OBJECT *rStrg)
 {
 	uint8_t _sectorsPerCluster = drive->sectorsPerCluster;
 	uint32_t _firstDataSector = drive->firstDataSector;
@@ -353,29 +353,29 @@ static FILEIO_ERROR_TYPE RINGSTORE_GetInfo(RINGSTORE_OBJECT *rStore)
 
 	// Максимальное число файлов FAT32 размера CURRENT_FILE_512_SECTORS_SIZE,
 	// которое можно разместить на целевом записывающем устройстве.
-	rStore->CALC_maxFilesCount = RINGSTORE_CalcMaxFilesCount(
+	rStrg->CALC_maxFilesCount = RINGSTORE_CalcMaxFilesCount(
 			logicalSectorsDataCount, _sectorsPerCluster);
-	rStore->CALC_totalRootDirClustersCount = RINGSTORE_CalcMinRootDirClusterChainLength(
-			rStore->CALC_maxFilesCount, _sectorsPerCluster);
+	rStrg->CALC_totalRootDirClustersCount = RINGSTORE_CalcMinRootDirClusterChainLength(
+			rStrg->CALC_maxFilesCount, _sectorsPerCluster);
 
-	if (rStore->CALC_maxFilesCount == 0 || rStore->CALC_totalRootDirClustersCount == 0)
+	if (rStrg->CALC_maxFilesCount == 0 || rStrg->CALC_totalRootDirClustersCount == 0)
 		return FILEIO_ERROR_INVALID_ARGUMENT;
 
 	// Сколько записей нужно первой цепочке (две зерезервированы и корневая директория)
-	uint32_t fatEntrysForFirstChain = (2 + rStore->CALC_totalRootDirClustersCount);
+	uint32_t fatEntrysForFirstChain = (2 + rStrg->CALC_totalRootDirClustersCount);
 	// Сколько секторов таблицы FAT32 нужно первой цепочке
 	uint32_t fatSectorsForFirstChain = MATH_DivisionCeiling(fatEntrysForFirstChain, 128);
 
 	// Номер первого выравненного по секторам FAT32 кластера (128-кратный),
 	// который можно отдать первому файлу
-	rStore->CALC_FirstFileClusterNum = fatSectorsForFirstChain * 128;
+	rStrg->CALC_FirstFileClusterNum = fatSectorsForFirstChain * 128;
 
 	// TODO: тут скорее всего есть какая-то ошибка (вычисляется неправильно)
-	rStore->PH_ADDR_SectorFirstFile =
+	rStrg->PH_ADDR_SectorFirstFile =
 			_firstDataSector +
-			(rStore->CALC_FirstFileClusterNum - 2) * _sectorsPerCluster;
+			(rStrg->CALC_FirstFileClusterNum - 2) * _sectorsPerCluster;
 
-	rStore->clusterPerFile =
+	rStrg->clusterPerFile =
 			RINGSTORE_CONFIG_SECTORS_PER_FILE / _sectorsPerCluster;
 
 	return FILEIO_ERROR_NONE;
@@ -396,8 +396,8 @@ static FILEIO_ERROR_TYPE RINGSTORE_GetInfo(RINGSTORE_OBJECT *rStore)
 // соответствие/несоответствие формату RINGSTORE)
 // ******************************************************************
 
-static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
-{
+static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStrg)
+{	
 	uint8_t _fatCopyCount = drive->fatCopyCount;
 	uint8_t _sectorsPerCluster = drive->sectorsPerCluster;
 	uint32_t _fatSectorCount = drive->fatSectorCount;
@@ -416,7 +416,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 	// хранящую цепочку корневой директории,
 	// на предмет соответствия нашему формату
 	uint32_t fatSectorN, fatAbsoluteEntryN;
-	uint32_t *fat = (uint32_t*) (rStore->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
+	uint32_t *fat = (uint32_t*) (rStrg->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
 
 	uint8_t fatN;
 	uint16_t fatSectorEntryN;
@@ -427,7 +427,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 	// необходимая для размещения максимально возможного списка MY_FILE
 	// (в данном случае 10 Мб файлов).
 	uint16_t firstChainOfClustersLength =
-			2 + rStore->CALC_totalRootDirClustersCount;
+			2 + rStrg->CALC_totalRootDirClustersCount;
 
 	// Для каждой копии таблицы FAT32
 	for (fatN = 0; fatN < _fatCopyCount; ++fatN)
@@ -538,7 +538,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 					{
 						currentFileClusterEntry = 0;
 						++myFilesCount;
-						if (myFilesCount == rStore->CALC_maxFilesCount)
+						if (myFilesCount == rStrg->CALC_maxFilesCount)
 							break;
 
 						// Эта схема предполагает игнорирование оставшейся за EOC части сектора разметки,
@@ -553,7 +553,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 				}
 			}
 
-			if (myFilesCount == rStore->CALC_maxFilesCount)
+			if (myFilesCount == rStrg->CALC_maxFilesCount)
 				break;
 		}
 	}
@@ -572,7 +572,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 	FILEIO_DIRECTORY_ENTRY *dirEntrys = (FILEIO_DIRECTORY_ENTRY*) fat;
 
 	uint32_t chainRootDirSectorsCount =
-			rStore->CALC_totalRootDirClustersCount * _sectorsPerCluster;
+			rStrg->CALC_totalRootDirClustersCount * _sectorsPerCluster;
 
 	uint32_t dataSectorN;
 	uint8_t dataEntryN;
@@ -580,7 +580,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 	uint32_t curClusterN, curMyFilesCount = 0;
 	uint32_t fNameNum, fSize;
 
-	rStore->CUR_FileNameIndex = 0x00000000;
+	rStrg->CUR_FileNameIndex = 0x00000000;
 	bool nullEntryFlag = false;
 	// MY: написана ночью, проверялась слабо
 	for (dataSectorN = 0; dataSectorN < chainRootDirSectorsCount; ++dataSectorN)
@@ -602,7 +602,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 
 			if (dataSectorN == 0 && dataEntryN == 1)
 			{
-				curClusterN = rStore->CALC_FirstFileClusterNum;
+				curClusterN = rStrg->CALC_FirstFileClusterNum;
 			} else if (dirEntrys[dataEntryN].name[0] == 0)
 			{
 				// Обнаружение пустой записи
@@ -618,7 +618,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 			firstClusterOfFile <<= sizeof (uint16_t) * RINGSTORE_BIT_PER_BYTE;
 			firstClusterOfFile += (uint32_t) dirEntrys[dataEntryN].firstClusterLow;
 
-			if (curMyFilesCount > rStore->CALC_maxFilesCount)
+			if (curMyFilesCount > rStrg->CALC_maxFilesCount)
 				if (firstClusterOfFile != 0) // Если есть записи файлов за рассчётными пределами
 					return FILEIO_ERROR_NOT_FORMATTED;
 
@@ -626,30 +626,30 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 				return FILEIO_ERROR_NOT_FORMATTED;
 
 			fNameNum = atoi(dirEntrys[dataEntryN].name);
-			if (fNameNum >= rStore->CUR_FileNameIndex) // Обновляем курсор, если это необходимо
+			if (fNameNum >= rStrg->CUR_FileNameIndex) // Обновляем курсор, если это необходимо
 			{
-				rStore->CUR_FileNameIndex = fNameNum;
-				rStore->CUR_FileRootDirIndex = curMyFilesCount - 1;
+				rStrg->CUR_FileNameIndex = fNameNum;
+				rStrg->CUR_FileRootDirIndex = curMyFilesCount - 1;
 				fSize = dirEntrys[dataEntryN].fileSize;
 			}
 		}
 	}
 
 	// Вычисляем оставшиеся компоненты курсора
-	rStore->CUR_FilePhysicalSectorNum =
-			rStore->PH_ADDR_SectorFirstFile
-			+ 1l * rStore->CUR_FileRootDirIndex * RINGSTORE_CONFIG_SECTORS_PER_FILE
+	rStrg->CUR_FilePhysicalSectorNum =
+			rStrg->PH_ADDR_SectorFirstFile
+			+ 1l * rStrg->CUR_FileRootDirIndex * RINGSTORE_CONFIG_SECTORS_PER_FILE
 			+ fSize / FILEIO_CONFIG_MEDIA_SECTOR_SIZE;
 
-	rStore->CUR_SectorByteNum = fSize % FILEIO_CONFIG_MEDIA_SECTOR_SIZE;
+	rStrg->CUR_SectorByteNum = fSize % FILEIO_CONFIG_MEDIA_SECTOR_SIZE;
 
-	if (rStore->CUR_SectorByteNum != 0)
+	if (rStrg->CUR_SectorByteNum != 0)
 		if (!FILEIO_SD_SectorRead(drive->mediaParameters,
-				rStore->CUR_FilePhysicalSectorNum, rStore->CUR_LoggingBuffer))
+				rStrg->CUR_FilePhysicalSectorNum, rStrg->CUR_LoggingBuffer))
 			return FILEIO_ERROR_BAD_SECTOR_READ;
 
 	/*ФАЗА №3 (КОНЕЦ): Анализ списка записей корневой директории*/
-
+	
 	return FILEIO_ERROR_NONE;
 }
 //------------------------------------------------------------------------------
@@ -668,8 +668,8 @@ static FILEIO_ERROR_TYPE RINGSTORE_Check(RINGSTORE_OBJECT *rStore)
 // (код ошибки; возвращает FILEIO_ERROR_NONE при штатном завершении)
 // ******************************************************************
 
-static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
-{
+static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStrg)
+{	
 	uint8_t _fatCopyCount = drive->fatCopyCount;
 	uint8_t _sectorsPerCluster = drive->sectorsPerCluster;
 	uint32_t _fatSectorCount = drive->fatSectorCount;
@@ -680,7 +680,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 	// хранящую цепочку корневой директории,
 	// на предмет соответствия нашему формату
 	uint32_t fatSectorN, fatSectorEntryN, fatAbsoluteEntryN;
-	uint32_t *fat = (uint32_t*) (rStore->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
+	uint32_t *fat = (uint32_t*) (rStrg->CUR_LoggingBuffer); // Буфер для чтения 512 сектора
 
 	uint8_t fatN;
 
@@ -690,7 +690,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 	// необходимая для размещения максимально возможного списка MY_FILE
 	// (в данном случае 10 Мб файлов).
 	uint16_t firstChainOfClustersLength =
-			2 + rStore->CALC_totalRootDirClustersCount;
+			2 + rStrg->CALC_totalRootDirClustersCount;
 
 	for (fatSectorN = _firstFatSector; /*выход через break*/; ++fatSectorN)
 	{
@@ -773,7 +773,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 				fat[fatSectorEntryN] = FAT32_MARK_EOC;
 				currentFileClusterEntry = 0;
 				++myFilesCount;
-			} else if (myFilesCount != rStore->CALC_maxFilesCount) // Если дописываем цепочку текущего файла
+			} else if (myFilesCount != rStrg->CALC_maxFilesCount) // Если дописываем цепочку текущего файла
 			{
 				fat[fatSectorEntryN] = fatAbsoluteNextEntryN;
 			} else // Если цепочки максимального числа наших файлов (10Mb) готовы
@@ -795,7 +795,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 		}
 
 		// Основной выход...
-		if (myFilesCount == rStore->CALC_maxFilesCount)
+		if (myFilesCount == rStrg->CALC_maxFilesCount)
 			break;
 	}
 	/*ФАЗА №2 (КОНЕЦ): Форматирование цепочек кластеров кольца MY_FILE в таблицах FAT32*/
@@ -805,10 +805,10 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 	/*ФАЗА №3 (НАЧАЛО): Очистка области памяти, выделенной для корневой директории*/
 
 	// Создание записи первого файла
-	rStore->CUR_FileNameIndex = 0;
-	rStore->CUR_FileRootDirIndex = 0;
-	rStore->CUR_FilePhysicalSectorNum = rStore->PH_ADDR_SectorFirstFile;
-	rStore->CUR_SectorByteNum = 0;
+	rStrg->CUR_FileNameIndex = 0;
+	rStrg->CUR_FileRootDirIndex = 0;
+	rStrg->CUR_FilePhysicalSectorNum = rStrg->PH_ADDR_SectorFirstFile;
+	rStrg->CUR_SectorByteNum = 0;
 
 	FILEIO_DIRECTORY_ENTRY *dEntry = (FILEIO_DIRECTORY_ENTRY*) fat;
 	memset(dEntry, 0, FILEIO_CONFIG_MEDIA_SECTOR_SIZE);
@@ -816,8 +816,8 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 	FILEIO_TIMESTAMP timeStamp;
 	if (timestampGet != NULL)
 		(*timestampGet)(&timeStamp);
-	RINGSTORE_UpdateDriveFileEntry(dEntry + 0, rStore, &timeStamp);
-	RINGSTORE_UpdateCreateFileEntry(dEntry + 1, rStore, &timeStamp);
+	RINGSTORE_UpdateDriveFileEntry(dEntry + 0, &timeStamp);
+	RINGSTORE_UpdateCreateFileEntry(dEntry + 1, rStrg, &timeStamp);
 
 	if (!FILEIO_SD_SectorWrite(drive->mediaParameters,
 			_firstDataSector + 0, (uint8_t*) dEntry, false))
@@ -826,7 +826,7 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 	// Очистка оставшейся части корневой директории	
 	uint8_t* nullBuf = (uint8_t*) fat;
 	memset(nullBuf, 0, 512);
-	uint32_t minRootDirSectorsCount = rStore->CALC_totalRootDirClustersCount * _sectorsPerCluster;
+	uint32_t minRootDirSectorsCount = rStrg->CALC_totalRootDirClustersCount * _sectorsPerCluster;
 
 	uint32_t dataSectorN;
 	for (dataSectorN = 1; dataSectorN < minRootDirSectorsCount; ++dataSectorN)
@@ -839,35 +839,39 @@ static FILEIO_ERROR_TYPE RINGSTORE_FormattingTables(RINGSTORE_OBJECT *rStore)
 }
 //------------------------------------------------------------------------------
 
-FILEIO_ERROR_TYPE RINGSTORE_StorePacket(RINGSTORE_OBJECT *rStore, const uint8_t packet[], uint8_t pSize)
+FILEIO_ERROR_TYPE RINGSTORE_StorePacket(RINGSTORE_OBJECT *rStrg, const uint8_t packet[], uint8_t pSize)
 {
 	FILEIO_ERROR_TYPE error;
-
-	if (rStore->CUR_SectorByteNum + pSize > FILEIO_CONFIG_MEDIA_SECTOR_SIZE)
+		
+	if (rStrg->CUR_SectorByteNum + pSize > FILEIO_CONFIG_MEDIA_SECTOR_SIZE)
 	{
-		error = RINGSTORE_StepToNextSector(rStore);
+		error = RINGSTORE_StepToNextSector(rStrg);
 		if (error != FILEIO_ERROR_NONE)
+		{
 			return error;
+		}
 	}
 
 	memcpy(
-			rStore->CUR_LoggingBuffer + rStore->CUR_SectorByteNum,
+			rStrg->CUR_LoggingBuffer + rStrg->CUR_SectorByteNum,
 			packet,
 			pSize);
-	rStore->CUR_SectorByteNum += pSize;
+	rStrg->CUR_SectorByteNum += pSize;
 
-	if (rStore->CUR_SectorByteNum == FILEIO_CONFIG_MEDIA_SECTOR_SIZE)
+	if (rStrg->CUR_SectorByteNum == FILEIO_CONFIG_MEDIA_SECTOR_SIZE)
 	{
-		error = RINGSTORE_StepToNextSector(rStore);
+		error = RINGSTORE_StepToNextSector(rStrg);
 		if (error != FILEIO_ERROR_NONE)
+		{
 			return error;
+		}
 	}
-
+	
 	return FILEIO_ERROR_NONE;
 }
 //------------------------------------------------------------------------------
 
-FILEIO_ERROR_TYPE RINGSTORE_Open(RINGSTORE_OBJECT *rStore, const FILEIO_DRIVE_CONFIG *driveConfig, void *mediaParameters)
+FILEIO_ERROR_TYPE RINGSTORE_Open(RINGSTORE_OBJECT *rStrg, const FILEIO_DRIVE_CONFIG *driveConfig, void *mediaParameters)
 {
 	if (drive != NULL)
 		if (FILEIO_DriveUnmount('A') != FILEIO_RESULT_SUCCESS)
@@ -884,29 +888,31 @@ FILEIO_ERROR_TYPE RINGSTORE_Open(RINGSTORE_OBJECT *rStore, const FILEIO_DRIVE_CO
 	if (drive->type != FILEIO_FILE_SYSTEM_TYPE_FAT32)
 		return FILEIO_ERROR_UNSUPPORTED_FS;
 
-	error = RINGSTORE_GetInfo(rStore);
+	error = RINGSTORE_GetInfo(rStrg);
 	if (error != FILEIO_ERROR_NONE)
 		return error;
-
-	error = RINGSTORE_Check(rStore);
+	
+	error = RINGSTORE_Check(rStrg);
 	switch (error)
 	{
 		case FILEIO_ERROR_NOT_FORMATTED:
-			return RINGSTORE_FormattingTables(rStore);
+		{
+			return RINGSTORE_FormattingTables(rStrg);			
+		}
 		default:
 			return error;
 	}
 }
 //------------------------------------------------------------------------------
 
-FILEIO_ERROR_TYPE RINGSTORE_TryClose(RINGSTORE_OBJECT *rStore)
+FILEIO_ERROR_TYPE RINGSTORE_TryClose(RINGSTORE_OBJECT *rStrg)
 {
 	FILEIO_ERROR_TYPE error = FILEIO_ERROR_NONE;
 
 	if (drive != NULL)
 	{
-		error = RINGSTORE_SaveAndCloseFile(rStore);
-
+		error = RINGSTORE_SaveAndCloseFile(rStrg);
+		
 		drive = NULL;
 
 		if (FILEIO_DriveUnmount('A') != FILEIO_RESULT_SUCCESS)

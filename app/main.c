@@ -1,17 +1,10 @@
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-#include <xc.h>
-
-#include <stdio.h>
-
 #include "main.h"
-#include "system.h"
-#include "rtcc.h"
-
-#include "ringstore_fat32.h"
 
 extern FILEIO_SD_DRIVE_CONFIG sdCardMediaParameters;
+
+MODULE_STATE moduleState;
+RINGSTORE_OBJECT rStore;
+uint32_t globalSecondsTime1980;
 
 // The gSDDrive structure allows the user to specify which set of driver functions should be used by the
 // FILEIO library to interface to the drive.
@@ -27,19 +20,9 @@ const FILEIO_DRIVE_CONFIG gSdDrive = {
 };
 
 int main(void)
-{	
-	RINGSTORE_OBJECT rStore;
-
+{
 	SYSTEM_Initialize();
 
-	/* TODO: неадаптированная конфигурация
-	BSP_RTCC_DATETIME dateTime;
-	dateTime.bcdFormat = false;
-	RTCC_BuildTimeGet(&dateTime);
-	
-	RTCC_Initialize(&dateTime);
-	*/
-	
 	// Initialize the library
 	if (!FILEIO_Initialize())
 	{
@@ -56,10 +39,13 @@ int main(void)
 	//    RS485_initial(); // инициализация порта UART
 
 	char sampleData[11];
+	globalSecondsTime1980 = 0;
 
-	FILEIO_ERROR_TYPE error;	
+	FILEIO_ERROR_TYPE error;
 
-	MODULE_STATE moduleState = MODULE_STATE_NO_CARD; // MODULE_STATE_NO_CARD;	
+	moduleState = MODULE_STATE_NO_CARD; // MODULE_STATE_NO_CARD;
+	rStore.FLAG_BufferUsed = false;
+
 	while (true)
 	{
 		SetModuleState(moduleState);
@@ -75,15 +61,26 @@ int main(void)
 				break;
 			case MODULE_STATE_CARD_DETECTED:
 				// Инициализировать карту
-				error = RINGSTORE_Open(&rStore, &gSdDrive, &sdCardMediaParameters);
+
+				rStore.FLAG_BufferUsed = true;
+				error = RINGSTORE_Open(&rStore,
+						&gSdDrive,
+						&sdCardMediaParameters);
+				rStore.FLAG_BufferUsed = false;
+
 				moduleState = error ?
 						MODULE_STATE_FAILED : MODULE_STATE_CARD_INITIALIZED;
 				break;
 			case MODULE_STATE_CARD_INITIALIZED:
 				// Записать буфер, если он готов
 				sprintf(sampleData, "%08luBIN", rStore.CUR_FileNameIndex % 100000000);
-				
-				error = RINGSTORE_StorePacket(&rStore, (const uint8_t*) sampleData, strlen(sampleData));
+
+				rStore.FLAG_BufferUsed = true;
+				error = RINGSTORE_StorePacket(&rStore,
+						(const uint8_t*) sampleData,
+						strlen(sampleData));
+				rStore.FLAG_BufferUsed = false;
+
 				if (error != FILEIO_ERROR_NONE)
 				{
 					moduleState = RINGSTORE_TryClose(&rStore) ?
@@ -105,7 +102,6 @@ int main(void)
 					moduleState = MODULE_STATE_NO_CARD;
 				}
 				break;
-				
 		}
 	}
 }
@@ -113,23 +109,22 @@ int main(void)
 
 void GetTimestamp(FILEIO_TIMESTAMP * timeStamp)
 {
-	BSP_RTCC_DATETIME dateTime;
+	struct tm * timeinfo;
+	// Перевод секунд от 1980 к секундам от 1970
+	// (10 лет и два високосных дня)
+	time_t rawtime = globalSecondsTime1980 - 315532800;
 
-	dateTime.bcdFormat = false;
-
-	/* MY: неадаптированная конфигурация */
-	// RTCC_TimeGet(&dateTime);	
-	RTCC_BuildTimeGet(&dateTime); // TODO: подмена таймера временем компиляции (заглушка)
+	timeinfo = localtime(&rawtime);
 
 	timeStamp->timeMs = 0;
-	timeStamp->time.bitfield.hours = dateTime.hour;
-	timeStamp->time.bitfield.minutes = dateTime.minute;
-	timeStamp->time.bitfield.secondsDiv2 = dateTime.second / 2;
+	timeStamp->time.bitfield.hours = timeinfo->tm_hour;
+	timeStamp->time.bitfield.minutes = timeinfo->tm_min;
+	timeStamp->time.bitfield.secondsDiv2 = timeinfo->tm_sec / 2;
 
-	timeStamp->date.bitfield.day = dateTime.day;
-	timeStamp->date.bitfield.month = dateTime.month;
-	// Years in the RTCC module go from 2000 to 2099.  Years in the FAT file system go from 1980-2108.
-	timeStamp->date.bitfield.year = dateTime.year + 20;
+	timeStamp->date.bitfield.day = timeinfo->tm_mday;
+	timeStamp->date.bitfield.month = timeinfo->tm_mon;
+	// Years in the FAT file system go from 1980-2108.
+	timeStamp->date.bitfield.year = timeinfo->tm_year - 80;
 }
 //------------------------------------------------------------------------------
 

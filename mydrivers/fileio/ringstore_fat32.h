@@ -37,6 +37,8 @@ typedef struct
 	uint16_t CUR_SectorByteNum;
 
 	uint8_t CUR_LoggingBuffer[FILEIO_CONFIG_MEDIA_SECTOR_SIZE];
+	
+	bool FLAG_BufferUsed;
 } RINGSTORE_OBJECT;
 //------------------------------------------------------------------------------
 

@@ -1,0 +1,96 @@
+void write_message_mfl(FlashSig *data)//запрос на запись сообщения на внешний флеш накопитель
+{
+    Long_on_bytes seconds_since_1980;
+    unsigned char scan;
+    unsigned char *buff_tr, i, a, b, *uk;
+    StatusTR *st;
+
+    if (data->uart == 1)
+    {
+        buff_tr = buff_tr1;
+        st = &statusTR1;
+    }
+    else
+    {
+        buff_tr = buff_tr2;
+        st = &statusTR2;
+    }
+
+    if ((st->status & 0b00100101) == 0) // состояние передатчика
+    {
+        if (data->out >= data->max) a = 0;
+        else a = data->out;
+        seconds_since_1980.l_data = data->tsoob[a];
+        buff_tr[0] = data->adres; // формируем буфер передачи
+        buff_tr[1] = WRITE_FLASH; // комманда
+        buff_tr[2] = data->sch_soob; // номер сообщения
+        //buff_tr[3] = 68; // к-во байт
+        buff_tr[4] = seconds_since_1980.byte_3;
+        buff_tr[5] = seconds_since_1980.byte_2;
+        buff_tr[6] = seconds_since_1980.byte_1;
+        buff_tr[7] = seconds_since_1980.byte_0;
+        uk = &data->soob[a][0];
+
+        if (uk[0] == 'X' && uk[1] == 'X' && uk[2] == 'X')
+        {
+            for (scan = 0; scan < uk[3] && scan < 64; scan++)
+            {
+                buff_tr[8 + scan] = uk[scan + 4];
+            }
+        }
+        else
+        {
+            for (scan = 0; scan < 64; scan++)
+            {
+                buff_tr[8 + scan] = uk[scan];
+            }
+        }
+        buff_tr[3] = 4 + scan; // к-во байт
+        buff_tr[8 + scan] = Crc8(buff_tr, 8 + scan); // контрольная сумма
+        st->type = 1;
+        if (data->uart == 1) U1BRG = BRG(data->speed);
+        else U2BRG = BRG(data->speed);
+        if (data->uart == 1) turn_buffer1(9 + scan);
+        else turn_buffer2(9 + scan);
+    }
+
+    //  data->send_message.k_vo_na_otpravku--;
+}
+//------------------------------------------------------------------------------
+
+void initial_mfl(FlashSig *data)//запрос на инициализацию внешнего флеш накопителя
+{
+    Long_on_bytes seconds_since_1980;
+    seconds_since_1980.l_data = TimeToSec1980();
+    unsigned char *buff_tr;
+    StatusTR *st;
+    if (data->uart == 1)
+    {
+        buff_tr = buff_tr1;
+        st = &statusTR1;
+    }
+    else
+    {
+        buff_tr = buff_tr2;
+        st = &statusTR2;
+    }
+    if ((st->status & 0b00100101) == 0) // состояние передатчика
+    {
+        buff_tr[0] = data->adres; // формируем буфер передачи
+        buff_tr[1] = INITIAL_FLASH; // комманда
+        buff_tr[2] = 0x00; // к-во байт
+        buff_tr[3] = 6; // к-во байт
+        buff_tr[4] = seconds_since_1980.byte_3;
+        buff_tr[5] = seconds_since_1980.byte_2;
+        buff_tr[6] = seconds_since_1980.byte_1;
+        buff_tr[7] = seconds_since_1980.byte_0;
+        buff_tr[8] = nastroiki.N_log;
+        buff_tr[9] = nastroiki.size_log;
+        buff_tr[10] = Crc8(buff_tr, 10); // контрольная сумма
+        st->type = 1;
+        if (data->uart == 1) U1BRG = BRG(data->speed);
+        else U2BRG = BRG(data->speed);
+        if (data->uart == 1)turn_buffer1(11);
+        else turn_buffer2(11);
+    }
+}

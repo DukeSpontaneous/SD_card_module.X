@@ -46,117 +46,121 @@
 
 #include "system_config.h"
 #include "system.h"
+
 #include <xc.h>
 #include <stdbool.h>
 #include <sd_spi.h>
 
+#include "rs-485.h"
+
 void SYSTEM_Initialize(void)
 {
-	PLLFBD = 38; // M = 32
-	CLKDIVbits.PLLPOST = 0; // N1 = 2
-	CLKDIVbits.PLLPRE = 0; // N2 = 2
-	// Initiate Clock Switch to Primary Oscillator with PLL (NOSC = 0b011)
-	__builtin_write_OSCCONH(0x03);
-	__builtin_write_OSCCONL(0x01);
-	// Wait for Clock switch to occur
-	while (OSCCONbits.COSC != 0b011)
-	{
-	};
-	// Wait for PLL to lock
-	while (OSCCONbits.LOCK != 1)
-	{
-	};
-	AD1PCFGL = 0xFFFF; // конфигурация цифровые I\O
-	TRISAbits.TRISA0 = 0; /*led1*/
-	TRISAbits.TRISA1 = 0; /*led2*/
-	TRISAbits.TRISA4 = 1; //vdd_on_off
-	TRISBbits.TRISB9 = 0; /*led3*/
-	TRISBbits.TRISB1 = 0; /*DO*/
-	TRISBbits.TRISB2 = 0; /*sck*/
-	TRISBbits.TRISB3 = 1; /*si*/
-	TRISBbits.TRISB7 = 0; /*de rs485*/
-	TRISBbits.TRISB6 = 0; /*out rs485*/
-	TRISBbits.TRISB8 = 1; /*in rs485*/
-	TRISBbits.TRISB15 = 1; /*input mikric (0 - закрыт, 1 - открыт)*/
+    PLLFBD = 38; // M = 32
+    CLKDIVbits.PLLPOST = 0; // N1 = 2
+    CLKDIVbits.PLLPRE = 0; // N2 = 2
+    // Initiate Clock Switch to Primary Oscillator with PLL (NOSC = 0b011)
+    __builtin_write_OSCCONH(0x03);
+    __builtin_write_OSCCONL(0x01);
+    // Wait for Clock switch to occur
+    while (OSCCONbits.COSC != 0b011)
+    {
+    };
+    // Wait for PLL to lock
+    while (OSCCONbits.LOCK != 1)
+    {
+    };
+    AD1PCFGL = 0xFFFF; // конфигурация цифровые I\O
+    TRISAbits.TRISA0 = 0; /*led1*/
+    TRISAbits.TRISA1 = 0; /*led2*/
+    TRISAbits.TRISA4 = 1; //vdd_on_off
+    TRISBbits.TRISB9 = 0; /*led3*/
+    TRISBbits.TRISB1 = 0; /*DO*/
+    TRISBbits.TRISB2 = 0; /*sck*/
+    TRISBbits.TRISB3 = 1; /*si*/
+    TRISBbits.TRISB7 = 0; /*de rs485*/
+    TRISBbits.TRISB6 = 0; /*out rs485*/
+    TRISBbits.TRISB8 = 1; /*in rs485*/
+    TRISBbits.TRISB15 = 1; /*input mikric (0 - закрыт, 1 - открыт)*/
 
-	USER_SetLedRed(false);
-	USER_SetLedBlue(false);
-	USER_SetLedWhite(false);
+    USER_SetLedRed(false);
+    USER_SetLedBlue(false);
+    USER_SetLedWhite(false);
+    RS485_initial();
 }
 
 void USER_SdSpiConfigurePins(void)
 {
-	// Configure SPI1 PPS pins
+    // Configure SPI1 PPS pins
 
-	RPOR1bits.RP2R = 8; // assign RP? for SCK1
-	RPOR0bits.RP1R = 7; // assign RP? for SDO1
-	RPINR20bits.SDI1R = 3; // assign RP? for SDI1 /*RB3*/
+    RPOR1bits.RP2R = 8; // assign RP? for SCK1
+    RPOR0bits.RP1R = 7; // assign RP? for SDO1
+    RPINR20bits.SDI1R = 3; // assign RP? for SDI1 /*RB3*/
 
-	// Deassert the chip select pin
-	LATBbits.LATB0 = 1;
-	// Configure CS pin as an output
-	TRISBbits.TRISB0 = 0;
-	// Configure CD pin as an input
-	TRISBbits.TRISB4 = 1;
-	// Configure WP pin as an input
-	TRISBbits.TRISB5 = 1;
+    // Deassert the chip select pin
+    LATBbits.LATB0 = 1;
+    // Configure CS pin as an output
+    TRISBbits.TRISB0 = 0;
+    // Configure CD pin as an input
+    TRISBbits.TRISB4 = 1;
+    // Configure WP pin as an input
+    TRISBbits.TRISB5 = 1;
 
-	// Configure SPI1...
+    // Configure SPI1...
 
-	SPI1CON1bits.DISSCK = 0;
-	SPI1CON1bits.DISSDO = 0;
-	SPI1CON1bits.MODE16 = 0;
-	SPI1CON1bits.SMP = 0;
-	SPI1CON1bits.CKE = 0;
-	// SPI1CON1bits.SSEN = 0;
-	SPI1CON1bits.CKP = 1;
-	SPI1CON1bits.MSTEN = 1;
+    SPI1CON1bits.DISSCK = 0;
+    SPI1CON1bits.DISSDO = 0;
+    SPI1CON1bits.MODE16 = 0;
+    SPI1CON1bits.SMP = 0;
+    SPI1CON1bits.CKE = 0;
+    // SPI1CON1bits.SSEN = 0;
+    SPI1CON1bits.CKP = 1;
+    SPI1CON1bits.MSTEN = 1;
 
-	// SPRE<2:0>: Secondary Prescale bits (Master mode) (2)
-	// 111 = Secondary prescale 1:1
-	// 110 = Secondary prescale 2:1
-	// ...
-	// 000 = Secondary prescale 8:1
-	SPI1CON1bits.SPRE = 0b101; //13MHZ 101
+    // SPRE<2:0>: Secondary Prescale bits (Master mode) (2)
+    // 111 = Secondary prescale 1:1
+    // 110 = Secondary prescale 2:1
+    // ...
+    // 000 = Secondary prescale 8:1
+    SPI1CON1bits.SPRE = 0b101; //13MHZ 101
 
-	// PPRE<1:0>: Primary Prescale bits (Master mode) (2)
-	// 11 = Primary prescale 1:1
-	// 10 = Primary prescale 4:1
-	// 01 = Primary prescale 16:1
-	// 00 = Primary prescale 64:1
-	SPI1CON1bits.PPRE = 0b11;
+    // PPRE<1:0>: Primary Prescale bits (Master mode) (2)
+    // 11 = Primary prescale 1:1
+    // 10 = Primary prescale 4:1
+    // 01 = Primary prescale 16:1
+    // 00 = Primary prescale 64:1
+    SPI1CON1bits.PPRE = 0b11;
 
-	SPI1CON2bits.FRMEN = 0;
-	SPI1CON2bits.SPIFSD = 0;
-	SPI1CON2bits.FRMPOL = 0;
-	SPI1CON2bits.FRMDLY = 0;
+    SPI1CON2bits.FRMEN = 0;
+    SPI1CON2bits.SPIFSD = 0;
+    SPI1CON2bits.FRMPOL = 0;
+    SPI1CON2bits.FRMDLY = 0;
 
-	SPI1STATbits.SPIEN = 1;
-	SPI1STATbits.SPISIDL = 0;
-	SPI1STATbits.SPIROV = 0;
+    SPI1STATbits.SPIEN = 1;
+    SPI1STATbits.SPISIDL = 0;
+    SPI1STATbits.SPIROV = 0;
 
-	SPI1STATbits.SPIEN = 1;
+    SPI1STATbits.SPIEN = 1;
 }
 
 inline void USER_SdSpiSetCs(uint8_t a)
 {
-	LATBbits.LATB0 = a;
+    LATBbits.LATB0 = a;
 }
 
 inline bool USER_SdSpiGetCd(void)
 {
-	// На этих модулях RB4 почему-то всегда в логическом нуле,
-	// поэтому пытаться
-	return (
-			!PORTBbits.RB4 // Наличие(0)/отсутствие(1) карты
-			&& !PORTBbits.RB15 // Микроконтактное устройство открыто(1)/закрыто(0)
-			&& PORTAbits.RA4 // Внешнее(1)/внутреннее(0) питание
-			) ? true : false;
+    // На этих модулях RB4 почему-то всегда в логическом нуле,
+    // поэтому пытаться
+    return (
+            !PORTBbits.RB4 // Наличие(0)/отсутствие(1) карты
+            && !PORTBbits.RB15 // Микроконтактное устройство открыто(1)/закрыто(0)
+            && PORTAbits.RA4 // Внешнее(1)/внутреннее(0) питание
+            ) ? true : false;
 }
 
 inline bool USER_SdSpiGetWp(void)
 {
-	return (PORTBbits.RB5) ? true : false;
+    return (PORTBbits.RB5) ? true : false;
 }
 
 // The sdCardMediaParameters structure defines user-implemented functions needed by the SD-SPI fileio driver.
@@ -168,24 +172,24 @@ inline bool USER_SdSpiGetWp(void)
 // depending on which demo board/microcontroller you're using.
 // This structure must be maintained as long as the user wishes to access the specified drive.
 FILEIO_SD_DRIVE_CONFIG sdCardMediaParameters = {
-	1, // Use SPI module 1
-	USER_SdSpiSetCs, // User-specified function to set/clear the Chip Select pin.
-	USER_SdSpiGetCd, // User-specified function to get the status of the Card Detect pin.
-	USER_SdSpiGetWp, // User-specified function to get the status of the Write Protect pin.
-	USER_SdSpiConfigurePins // User-specified function to configure the pins' TRIS bits.
+    1, // Use SPI module 1
+    USER_SdSpiSetCs, // User-specified function to set/clear the Chip Select pin.
+    USER_SdSpiGetCd, // User-specified function to get the status of the Card Detect pin.
+    USER_SdSpiGetWp, // User-specified function to get the status of the Write Protect pin.
+    USER_SdSpiConfigurePins // User-specified function to configure the pins' TRIS bits.
 };
 
 inline void USER_SetLedBlue(bool stat)
 {
-	LATAbits.LATA0 = stat ? false : true;
+    LATAbits.LATA0 = stat ? false : true;
 }
 
 inline void USER_SetLedRed(bool stat)
 {
-	LATAbits.LATA1 = stat ? false : true;
+    LATAbits.LATA1 = stat ? false : true;
 }
 
 inline void USER_SetLedWhite(bool stat)
 {
-	LATBbits.LATB9 = stat;
+    LATBbits.LATB9 = stat;
 }
