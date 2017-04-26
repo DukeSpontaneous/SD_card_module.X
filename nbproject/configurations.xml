@@ -47,7 +47,7 @@
         <logicalFolder name="shuttle_control_system"
                        displayName="shuttle_control_system"
                        projectFiles="true">
-          <itemPath>myprotocols/shuttle_control_system/slave_modul_sd .h</itemPath>
+          <itemPath>myprotocols/shuttle_control_system/slave_modul_sd.h</itemPath>
         </logicalFolder>
       </logicalFolder>
     </logicalFolder>

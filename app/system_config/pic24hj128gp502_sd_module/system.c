@@ -53,8 +53,9 @@
 
 #include "rs-485.h"
 
-void SYSTEM_Initialize(void)
-{
+void SYSTEM_Initialize(void) {
+
+    // Configure PLL prescaler, PLL postscaler, PLL divisor
     PLLFBD = 38; // M = 32
     CLKDIVbits.PLLPOST = 0; // N1 = 2
     CLKDIVbits.PLLPRE = 0; // N2 = 2
@@ -62,14 +63,13 @@ void SYSTEM_Initialize(void)
     __builtin_write_OSCCONH(0x03);
     __builtin_write_OSCCONL(0x01);
     // Wait for Clock switch to occur
-    while (OSCCONbits.COSC != 0b011)
-    {
+    while (OSCCONbits.COSC != 0b011) {
     };
     // Wait for PLL to lock
-    while (OSCCONbits.LOCK != 1)
-    {
+    while (OSCCONbits.LOCK != 1) {
     };
-    AD1PCFGL = 0xFFFF; // конфигурация цифровые I\O
+    AD1PCFGL = 0xffff; // конфигурация цифровые I\O
+
     TRISAbits.TRISA0 = 0; /*led1*/
     TRISAbits.TRISA1 = 0; /*led2*/
     TRISAbits.TRISA4 = 1; //vdd_on_off
@@ -85,11 +85,12 @@ void SYSTEM_Initialize(void)
     USER_SetLedRed(false);
     USER_SetLedBlue(false);
     USER_SetLedWhite(false);
-    RS485_Initialize();
+    
+    T2initial(); //rs-485
+    RS485_initial(); // инициализация порта uart
 }
 
-void USER_SdSpiConfigurePins(void)
-{
+void USER_SdSpiConfigurePins(void) {
     // Configure SPI1 PPS pins
 
     RPOR1bits.RP2R = 8; // assign RP? for SCK1
@@ -142,13 +143,11 @@ void USER_SdSpiConfigurePins(void)
     SPI1STATbits.SPIEN = 1;
 }
 
-inline void USER_SdSpiSetCs(uint8_t a)
-{
+inline void USER_SdSpiSetCs(uint8_t a) {
     LATBbits.LATB0 = a;
 }
 
-inline bool USER_SdSpiGetCd(void)
-{
+inline bool USER_SdSpiGetCd(void) {
     // На этих модулях RB4 почему-то всегда в логическом нуле,
     // поэтому пытаться
     return (
@@ -158,8 +157,7 @@ inline bool USER_SdSpiGetCd(void)
             ) ? true : false;
 }
 
-inline bool USER_SdSpiGetWp(void)
-{
+inline bool USER_SdSpiGetWp(void) {
     return (PORTBbits.RB5) ? true : false;
 }
 
@@ -179,17 +177,14 @@ FILEIO_SD_DRIVE_CONFIG sdCardMediaParameters = {
     USER_SdSpiConfigurePins // User-specified function to configure the pins' TRIS bits.
 };
 
-inline void USER_SetLedBlue(bool stat)
-{
+inline void USER_SetLedBlue(bool stat) {
     LATAbits.LATA0 = stat ? false : true;
 }
 
-inline void USER_SetLedRed(bool stat)
-{
+inline void USER_SetLedRed(bool stat) {
     LATAbits.LATA1 = stat ? false : true;
 }
 
-inline void USER_SetLedWhite(bool stat)
-{
+inline void USER_SetLedWhite(bool stat) {
     LATBbits.LATB9 = stat;
 }

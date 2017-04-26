@@ -20,12 +20,12 @@ const FILEIO_DRIVE_CONFIG gSdDrive = {
 
 int main(void)
 {
+    RCONbits.SWDTEN=0       ;
 	SYSTEM_TIME_Initialize();
 	SYSTEM_Initialize();
-
 	// Initialize the library
 	if (!FILEIO_Initialize())
-	{
+	{        
 		while (1);
 	}
 
