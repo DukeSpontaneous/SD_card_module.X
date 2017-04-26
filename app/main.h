@@ -17,6 +17,8 @@
 
 #include "rs_legasy.h"
 
+#define CLRWDT() {__asm__ volatile ("clrwdt");}
+
 typedef enum
 {
 	// Объявим возможные состояния работы модуля:

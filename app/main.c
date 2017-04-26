@@ -20,34 +20,26 @@ const FILEIO_DRIVE_CONFIG gSdDrive = {
 
 int main(void)
 {
-    RCONbits.SWDTEN=0       ;
 	SYSTEM_TIME_Initialize();
 	SYSTEM_Initialize();
 	// Initialize the library
 	if (!FILEIO_Initialize())
-	{        
+	{
 		while (1);
 	}
 
 	// Register the GetTimestamp function as the timestamp source for the library.
 	FILEIO_RegisterTimestampGet(GetTimestamp);
 
-	// TODO: что-то Вовино...
-	//    T1initial(); // таймер времени
-	//    T2initial(); // RS-485
-	//    T4initial(); // отстутствие связи
-	//    RS485_initial(); // инициализация порта UART
-
-	char sampleData[11];	
-
 	FILEIO_ERROR_TYPE error;
 
-	moduleState = MODULE_STATE_NO_CARD; // MODULE_STATE_NO_CARD;
-	rStore.FLAG_BufferUsed = false;
+	moduleState = MODULE_STATE_NO_CARD;
+	rStore.FLAG_IsAvailable = false;
 
 	while (true)
 	{
 		SetModuleState(moduleState);
+
 		switch (moduleState)
 		{
 			case MODULE_STATE_NO_CARD:
@@ -61,29 +53,21 @@ int main(void)
 			case MODULE_STATE_CARD_DETECTED:
 				// Инициализировать карту
 
-				rStore.FLAG_BufferUsed = true;
 				error = RINGSTORE_Open(&rStore,
 						&gSdDrive,
 						&sdCardMediaParameters);
-				rStore.FLAG_BufferUsed = false;
+				rStore.FLAG_IsAvailable = true;
 
 				moduleState = error ?
 						MODULE_STATE_FAILED : MODULE_STATE_CARD_INITIALIZED;
 				break;
 			case MODULE_STATE_CARD_INITIALIZED:
-				// Записать буфер, если он готов
-				sprintf(sampleData, "%08luBIN", rStore.CUR_FileNameIndex % 100000000);
-
-				rStore.FLAG_BufferUsed = true;
-				error = RINGSTORE_StorePacket(&rStore,
-						(const uint8_t*) sampleData,
-						strlen(sampleData));
-				rStore.FLAG_BufferUsed = false;
 
 				if (error != FILEIO_ERROR_NONE)
 				{
 					moduleState = RINGSTORE_TryClose(&rStore) ?
 							MODULE_STATE_FAILED : MODULE_STATE_NO_CARD;
+					rStore.FLAG_IsAvailable = false;
 				}
 
 				error = FILEIO_MediaDetect(&gSdDrive, &sdCardMediaParameters);
@@ -91,17 +75,23 @@ int main(void)
 				{
 					moduleState = RINGSTORE_TryClose(&rStore) ?
 							MODULE_STATE_FAILED : MODULE_STATE_NO_CARD;
+					rStore.FLAG_IsAvailable = false;
 				}
 				break;
 			default:
 				// TODO: Сигнализировать об аварийной ситуации и обработать её
 				RINGSTORE_TryClose(&rStore);
+				rStore.FLAG_IsAvailable = false;
+				
 				if (FILEIO_MediaDetect(&gSdDrive, &sdCardMediaParameters) == false)
 				{
-					moduleState = MODULE_STATE_NO_CARD;
+					moduleState = MODULE_STATE_NO_CARD;					
 				}
+				
 				break;
 		}
+
+		CLRWDT();
 	}
 }
 //------------------------------------------------------------------------------

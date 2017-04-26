@@ -4,8 +4,15 @@
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
             <file>file:/D:/Projects/GitHub/SD_card_module.X/myprotocols/shuttle_control_system/slave_modul_sd.h</file>
-            <file>file:/D:/Projects/GitHub/SD_card_module.X/mydrivers/rs-485/rs-485.h</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/app/system_config/pic24hj128gp502_sd_module/system.h</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/mydrivers/fileio/ringstore_fat32.c</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/app/main.c</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/mydrivers/rs-485/rs_legasy.c</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/app/main.h</file>
             <file>file:/D:/Projects/GitHub/SD_card_module.X/mydrivers/rs-485/rs-485.c</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/app/system_config/pic24hj128gp502_sd_module/system.c</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/app/system_config/pic24hj128gp502_sd_module/system_time.c</file>
+            <file>file:/D:/Projects/GitHub/SD_card_module.X/myprotocols/shuttle_control_system/slave_modul_sd.c</file>
         </group>
     </open-files>
 </project-private>

@@ -1,100 +1,134 @@
 #include "rs-485.h"
 
-StatusRX statusRX; // состояние приема
-StatusTR statusTR; // состояние передачи
+StatusRX statusRX; // Состояние приёма
+StatusTR statusTR; // Состояние передачи
 
 struct_flags_flash flags_flash;
-FlashParams flash_params;
-uint8_t buff_tr[TX_BUF_SIZE], buff_rx[RX_BUF_SIZE]; // буфера приема и передачи
-uint16_t num1, num1_p;
 
-Flags_Counts_Datas FDatas; //Структура для работы с флагоми и счётчиками
+uint8_t tr_frame[TX_BUF_SIZE], rx_frame[RX_BUF_SIZE]; // Буферы приёма и передачи
+uint16_t bytesTransfer, bytesTransferTotal;
 
-void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void) // функция прерываний по приему UART1
+// RS-485
+
+void __attribute__((interrupt, auto_psv)) _T2Interrupt(void)
 {
-	TMR2 = 0; // обнулить таймер
-	if (statusRX.timer == 1) // промежуток между посылками больше минимального
+	switch (PR2)
 	{
-		if (statusRX.address_agree == 0) // адрес устройства не совпал
-		{
-			buff_rx[0] = U1RXREG;
-			if (buff_rx[0] == ADDRESS_Ustroistva) // сравниваем адрес(совпал)
+		case TIME_TR:
+			if (statusTR.turn == 1) // Передача данных разрешена
 			{
-				U1STAbits.URXISEL1 = 1; // переключить на приём по 4 байта
-				statusRX.address_agree = 1; // адрес совпал
-				statusRX.numr++;
-				PR2 = timerx_ob;
+				T2CONbits.TON = 0; // Выключаем таймер для отправки сообщения
+				statusTR.tr_on = 1;
+				statusTR.turn = 0; // Сброс очереди
+				UART1_TR(); // Передача данных
+			}
+			break;
+		case TIME_RX: // Промежуток между посылками
+			statusRX.timer = 1;
+			U1STAbits.OERR = 0;
+			break;
+		case TIME_BREAK_RX:// Обрыв приёма (отключить при тестированиее с PC)
+
+			U1STAbits.OERR = 0;
+			while (U1STAbits.URXDA == 1)
+			{
+				statusRX.temp_buffer = U1RXREG;
+			}
+			U1STAbits.URXISEL = 0;
+			statusRX.status = 0;
+			statusRX.bytesReceived = 0;
+			TMR2 = 0;
+			PR2 = TIME_RX;
+			statusRX.error = 1;
+
+			break;
+		case TIME_FREE_LINE:
+			PR2 = TIME_RX;
+			R_T = 0; // Переводим max485 в режим приёма
+			break;
+	}
+	IFS0bits.T2IF = 0;
+}
+//------------------------------------------------------------------------------
+
+// Функция прерываний по приему UART1
+
+void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
+{
+	TMR2 = 0; // Обнулить таймер
+	if (statusRX.timer == 1) // Промежуток между посылками больше минимального
+	{
+		if (statusRX.isMyAddress == 0) // Если кадр для нашего устройства
+		{
+			rx_frame[0] = U1RXREG;
+			if (rx_frame[0] == MODULE_ADDRESS_SD)
+			{
+				U1STAbits.URXISEL1 = 1; // Переключить на приём по 4 байта
+				statusRX.isMyAddress = 1; // Адрес совпал
+				statusRX.bytesReceived++;
+				PR2 = TIME_BREAK_RX;
 			} else //не совпал
 			{
-				if (buff_rx[0] != 0)
+				if (rx_frame[0] != 0)
 				{
-					statusRX.timer = 0; // сброс сработки таймера (посылка данных другому устройству)
+					statusRX.timer = 0; // Сброс сработки таймера (посылка данных другому устройству)
 				}
 			}
-		} else//прием данных
+		} else // Приём данных
 		{
-			if (statusRX.b4rx == 0) // прием первых байт
+			if (statusRX.b4rx == 0) // Приём первых байт
 			{
-				while (U1STAbits.URXDA == 1) // прием данных
+				while (U1STAbits.URXDA == 1) // Приём данных
 				{
-					buff_rx[statusRX.numr++] = U1RXREG;
+					rx_frame[statusRX.bytesReceived++] = U1RXREG;
 				}
-				statusRX.command = buff_rx[1]; // коммандный байт
-				statusRX.numkr = buff_rx[3] + 5; // количество данных (все данные которые принимаются включая crc и служебные)
-				statusRX.b4rx = 1; // служебная информация принята
-				if (statusRX.numkr == 5) // если количество данных 0
+				statusRX.command = rx_frame[1]; // Код команды
+				statusRX.bytesExpected = rx_frame[3] + 5; // Количество данных (все данные которые принимаются включая CRC и служебные)
+				statusRX.b4rx = 1; // Служебная информация принята
+				if (statusRX.bytesExpected == 5) // Если в кадре нет поля данных
 				{
-
-					statusRX.crc = Crc8(buff_rx, 4); // считаем контрольную сумму
-					if (statusRX.crc == buff_rx[4]) // контрольная сумма совпала
+					statusRX.crc = gen_crc8(rx_frame, 4); // Вычисляем CRC
+					if (statusRX.crc == rx_frame[4]) // CRC совпал
 					{
-						statusRX.status = 0; //прием завершился удачно
+						statusRX.status = 0; // Приём завершился удачно
 					}
-				} else//есть данные для приема
+				} else// Есть данные для приёма
 				{
-					if (statusRX.numkr < 9)
+					if (statusRX.bytesExpected < 9)
 					{
-						U1STAbits.URXISEL1 = 0; // побайтовый режим приема
+						U1STAbits.URXISEL1 = 0; // Побайтовый режим приема
 					}
 				}
-			} else//данные
+			} else// Данные
 			{
 
-				while (U1STAbits.URXDA == 1) // прием данных
+				while (U1STAbits.URXDA == 1) // Приём данных
 				{
-					buff_rx[statusRX.numr++] = U1RXREG;
+					rx_frame[statusRX.bytesReceived++] = U1RXREG;
 				}
-				if (statusRX.numr < statusRX.numkr)
+				if (statusRX.bytesReceived < statusRX.bytesExpected)
 				{
-					if (statusRX.numkr < statusRX.numr + 4)
+					if (statusRX.bytesExpected < statusRX.bytesReceived + 4)
 					{
-						U1STAbits.URXISEL1 = 0; // побайтовый режим приема
+						U1STAbits.URXISEL1 = 0; // Побайтовый режим приёма
 					}
-				} else//прием завершен
+				} else// Приём завершён
 				{
 					PR2 = TIME_TR;
-					statusRX.crc = Crc8(buff_rx, statusRX.numr - 1);
-					if (statusRX.crc == buff_rx[statusRX.numr - 1])
+					statusRX.crc = gen_crc8(rx_frame, statusRX.bytesReceived - 1);
+					if (statusRX.crc == rx_frame[statusRX.bytesReceived - 1])
 					{
-						statusRX.status = 0; //прием завершился удачно
-						switch (statusRX.command) //обработка полученных данных
-						{
-							case code_stats: //Вернуть состояние
-							{
-								status();
-								break;
-							}
-							case code_write: //Попытка записи пришедшего сообщения в буфер
-							{
-								status(); //Флеш не готов или происходит сброс данных на флеш
-								break;
-							}
-						}
+						statusRX.status = 0; // Приём завершился удачно
+						
+						SLAVE_SD_MasterQueryProcessing(rx_frame, statusRX.bytesReceived);
+						send_answer_status();
+						CLRWDT();
+						
 					} else
 					{
 						statusRX.status = 0;
-						statusRX.numr = 0;
-						statusRX.eror = 1;
+						statusRX.bytesReceived = 0;
+						statusRX.error = 1;
 						PR2 = TIME_RX;
 					}
 				}
@@ -105,7 +139,7 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void) // функц�
 		U1STAbits.OERR = 0; // сброс ошибок буфера приема
 		while (U1STAbits.URXDA == 1)//прием данных
 		{
-			buff_rx[0] = U1RXREG;
+			rx_frame[0] = U1RXREG;
 		}
 
 	}
@@ -114,133 +148,77 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void) // функц�
 }
 //------------------------------------------------------------------------------
 
-void __attribute__((interrupt, auto_psv)) _U1TXInterrupt(void) // функция прерываний по завершению передачи UART1
+// Функция прерываний по завершению передачи UART1
+
+void __attribute__((interrupt, auto_psv)) _U1TXInterrupt(void)
 {
-	if (num1 < num1_p) // все данные загружены в FIFO ?
+	if (bytesTransfer < bytesTransferTotal) // Все данные загружены в FIFO?
 	{
-		while (num1 < num1_p) // добавляем в буфер FIFO
+		while (bytesTransfer < bytesTransferTotal) // Добавляем в буфер FIFO
 		{
-			if (U1STAbits.UTXBF == 1)// буфер полон ?
+			if (U1STAbits.UTXBF == 1) // Буфер полон?
 			{
 				break;
 			}
-			U1TXREG = buff_tr[num1++]; // добавляем данные в буфер
+			U1TXREG = tr_frame[bytesTransfer++]; // Добавляем данные в буфер
 
-			if (num1 == num1_p) // все данные загружены в FIFO, выходим ожидаем передачу последнего байта
+			if (bytesTransfer == bytesTransferTotal) // Все данные загружены в FIFO, выходим, ожидаем передачу последнего байта
 			{
-				U1STAbits.UTXISEL1 = 0; // переключаем прерывание на опустошение сдвигового регистра
+				U1STAbits.UTXISEL1 = 0; // Переключаем прерывание на опустошение сдвигового регистра
 				U1STAbits.UTXISEL0 = 1;
 			}
 		}
-	} else // передача завершена
+	} else // Передача завершена
 	{
-		if ((U1STAbits.TRMT == 0) && (U1STAbits.UTXISEL1 == 1))// для посылки меньше 5 байт, проверяем на наличие данных в сдвиговом регистре
+		if ((U1STAbits.TRMT == 0) && (U1STAbits.UTXISEL1 == 1))// Для посылки меньше 5 байт, проверяем на наличие данных в сдвиговом регистре
 		{
 			U1STAbits.UTXISEL1 = 0;
-			U1STAbits.UTXISEL0 = 1; // переключаем прерывание на опустошение сдвигового регистра
-			IFS0bits.U1TXIF = 0; // сброс прерываний по передаче
+			U1STAbits.UTXISEL0 = 1; // Переключаем прерывание на опустошение сдвигового регистра
+			IFS0bits.U1TXIF = 0; // Сброс прерываний по передаче
 			return;
 		}
 
-		IEC0bits.U1TXIE = 0; // отключаем прерывание по передаче
+		IEC0bits.U1TXIE = 0; // Отключаем прерывание по передаче
 
 		statusTR.time = 0;
 		statusTR.tr_on = 0;
-		PR2 = time_free_line; // время ожидания отпускания линии
-		T2CONbits.TON = 1; // включаем таймер для ожидания ответа
-		U1STAbits.OERR = 0; // сброс ошибок буфера приема
+		PR2 = TIME_FREE_LINE; // Время ожидания отпускания линии
+		T2CONbits.TON = 1; // Включаем таймер для ожидания ответа
+		U1STAbits.OERR = 0; // Сброс ошибок буфера приёма
 		while (U1STAbits.URXDA == 1)
 		{
 			statusRX.temp_buffer = U1RXREG;
 		}
-		statusRX.b4rx = 0; // очищаем состояние приемника
-		statusRX.numr = 0;
-		statusRX.numkr = 0;
+		statusRX.b4rx = 0; // Очищаем состояние приёмника
+		statusRX.bytesReceived = 0;
+		statusRX.bytesExpected = 0;
 
 		IFS0bits.U1RXIF = 0;
 		IEC0bits.U1RXIE = 1;
 	}
 
-	IFS0bits.U1TXIF = 0; // сброс прерываний по передаче
+	IFS0bits.U1TXIF = 0; // Сброс прерываний по передаче
 }
-//----------------
-
-void __attribute__((interrupt, auto_psv)) _T2Interrupt(void)// rs-485
-{
-	switch (PR2)
-	{
-		case TIME_TR:
-			if (statusTR.turn == 1) // передача данных разрешена
-			{
-				T2CONbits.TON = 0; // выключаем таймер для отправки сообщения
-				statusTR.tr_on = 1;
-				statusTR.turn = 0; // сброс очереди
-				RS485_1_TR(); // передача данных
-			}
-			break;
-		case TIME_RX: // помежуток между посылками
-			statusRX.timer = 1;
-			U1STAbits.OERR = 0;
-			break;
-		case timerx_ob:// обрыв приема (отключить при тестированиее с PC)
-
-			U1STAbits.OERR = 0;
-			while (U1STAbits.URXDA == 1)
-			{
-				statusRX.temp_buffer = U1RXREG;
-			}
-			U1STAbits.URXISEL = 0;
-			statusRX.status = 0;
-			statusRX.numr = 0;
-			TMR2 = 0;
-			PR2 = TIME_RX;
-			statusRX.eror = 1;
-
-			break;
-		case time_free_line:
-			PR2 = TIME_RX;
-			R_T1 = 0; // переводим max485 в режим приема
-			break;
-	}
-	IFS0bits.T2IF = 0;
-}
-
-void RS485_initial(void)// инициализация порта uart
-{
-	RPOR3bits.RP6R = 3; // TX1
-	RPINR18 = 8; // RX1 RP8 uart1
-	U1BRG = BRGVAL; // настройка битрейта
-	U1MODE = 0b1010000000000000;
-	U1STA = 0b1000010000000000;
-
-	IPC2bits.U1RXIP = 7; // приоритет прерываний на прием и передачу
-	IPC3bits.U1TXIP = 7;
-	IFS0bits.U1RXIF = 0; // обнуление сработки прерываний
-	IFS0bits.U1TXIF = 0;
-	IEC0bits.U1RXIE = 1; // включение прерываний
-	PR2 = TIME_RX;
-}
-
 //------------------------------------------------------------------------------
 
-void RS485_1_TR(void)// передача по uart1
+// Передача по UART1
+
+void UART1_TR(void)
 {
-	R_T1 = 1; //Перевести MAX485CSA в режим передачи
-	num1_p = num1; //Количество передаваемых байт
+	R_T = 1; // Перевести MAX485CSA в режим передачи
+	bytesTransferTotal = bytesTransfer; // Количество передаваемых байт
 
 	//IEC0bits.U1TXIE = 1; // Включить UART TX прерывания
 
-	for (num1 = 0; num1 < num1_p;)
+	for (bytesTransfer = 0; bytesTransfer < bytesTransferTotal;)
 	{
-		U1TXREG = buff_tr[num1++];
+		U1TXREG = tr_frame[bytesTransfer++];
 
 		if (U1STAbits.UTXBF == 1)
-		{
 			break;
-		}
-
 	}
-	U1STAbits.UTXISEL0 = 1; // переключаем прерывание в режим опустошения буффера
+
+	U1STAbits.UTXISEL0 = 1; // Переключаем прерывание в режим опустошения буффера
 	U1STAbits.UTXISEL1 = 0;
 	IEC0bits.U1TXIE = 1;
 
@@ -258,19 +236,68 @@ void RS485_1_TR(void)// передача по uart1
 }
 //------------------------------------------------------------------------------
 
-void RS485_TR_buff(uint8_t *str)
+// Отправка буфера данных
+
+void send_tr_frame(uint8_t length)
 {
-	unsigned char str_len = 0;
-	R_T1 = 1;
-	while (str[str_len] != 0 && str_len < 100)
+	bytesTransfer = length; // Устанавливаем количество байт для передачи
+	IEC0bits.U1RXIE = 0;
+	switch (statusTR.time) // Проверка на минимальное время между посылками
 	{
-		while (U1STAbits.UTXBF == 1)
-		{
-		}
-		U1TXREG = str[str_len];
-		str_len++;
+		case 0: // время меньше минимально допустимого
+			statusTR.turn = 1; //есть данные для отправки, данные поставлены в очередь
+			statusTR.reply_ok = 0;
+			break;
+		case 1: // время больше минимально допустимого
+			statusTR.turn = 0; // сброс очереди на отправку
+			statusTR.tr_on = 1; // передатчик занят
+			statusTR.reply_ok = 0;
+			UART1_TR(); // отправляем данные
+			break;
 	}
 }
+
+//------------------------------------------------------------------------------
+
+void send_answer_status(void)
+{
+	uint32_t totalMemory, freeMemory, freeClusters, sectorsize;
+
+	sectorsize = FSectorSize(); // Делёный на 256
+
+	totalMemory = (sectorsize * FTotalClusters()) >> 2; // Общий объём флеш в Kb (делёный на 4)
+
+	// Общее деление на 1024
+
+	freeClusters = FgetSetFreeCluster(); // Чтение из переменной обновляемой 1 раз в сек.
+	if (freeClusters == 0xFFFFFFFF) freeClusters = 0; // Ошибка
+	freeMemory = (sectorsize * freeClusters) >> 2; // Общий объём свободной памяти флеш в Kb
+
+	tr_frame[0] = MODULE_ADDRESS_MASTER;
+	tr_frame[1] = MODULE_ADDRESS_SD;
+	tr_frame[2] = 0x09; // Количество байт 
+
+	getSDFlags(&flags_flash);
+	tr_frame[3] = flags_flash.char_flags; // Stat
+
+	// Общее количество в Kb флеш
+	tr_frame[4] = totalMemory >> 24; // Со старшего байта
+	tr_frame[5] = totalMemory >> 16;
+	tr_frame[6] = totalMemory >> 8;
+	tr_frame[7] = totalMemory;
+
+	// Свободное количество в Kb флеш
+	tr_frame[8] = freeMemory >> 24; // Со старшего байта
+	tr_frame[9] = freeMemory >> 16;
+	tr_frame[10] = freeMemory >> 8;
+	tr_frame[11] = freeMemory;
+
+	tr_frame[12] = gen_crc8(tr_frame, 12); // CRC
+
+	send_tr_frame(13);
+}
+
+//------------------------------------------------------------------------------
 
 /*
   Name  : CRC-8
@@ -282,141 +309,17 @@ void RS485_TR_buff(uint8_t *str)
   MaxLen: 15 байт(127 бит) - обнаружение
 	одинарных, двойных, тройных и всех нечетных ошибок
  */
-uint8_t Crc8(uint8_t *pcBlock, uint8_t len)// контрольная сумма
+uint8_t gen_crc8(uint8_t *array, uint8_t length)
 {
-	unsigned char crc = 0xFF;
-	unsigned char i;
+	uint8_t crc = 0xFF;
+	uint8_t i;
 
-	while (len--)
+	while (length--)
 	{
-		crc ^= *pcBlock++;
+		crc ^= *array++;
 
 		for (i = 0; i < 8; i++)
 			crc = crc & 0x80 ? (crc << 1) ^ 0x31 : crc << 1;
-	}
-
-	return crc;
-}
-
-//------------------------------------------------------------------------------
-
-void turn_buffer1(unsigned char j)// отправка буффера данных
-{
-	num1 = j; // устанавливаем количество байт для передачи
-	IEC0bits.U1RXIE = 0;
-	switch (statusTR.time) // проверка на минимальное время между посылками
-	{
-		case 0: // время меньше минимально допустимого
-			statusTR.turn = 1; //есть данные для отправки, данные поставлены в очередь
-			statusTR.reply_ok = 0;
-			break;
-		case 1: // время больше минимально допустимого
-			statusTR.turn = 0; // сброс очереди на отправку
-			statusTR.tr_on = 1; // передатчик занят
-			statusTR.reply_ok = 0;
-			RS485_1_TR(); // отправляем данные
-			break;
-	}
-}
-
-//------------------------------------------------------------------------------
-
-void status(void)
-{
-	uint32_t totalMemory, freeMemory, freeClusters, sectorsize;
-
-	sectorsize = FSectorSize(); //Делёный на 256
-
-	totalMemory = (sectorsize * FTotalClusters()) >> 2; //Общий объём флеш в Kb (делёный на 4)
-
-	//Общее деление на 1024
-
-	freeClusters = FgetSetFreeCluster(); //Чтение из переменной обновляемой 1 раз в сек.
-	if (freeClusters == 0xffffffff) freeClusters = 0; //Ошибка
-	freeMemory = (sectorsize * freeClusters) >> 2; //Общий объём свободной памяти флеш в Kb
-
-	buff_tr[0] = ADDRESS_Master; //0xFF
-	buff_tr[1] = ADDRESS_Ustroistva; //0x76
-	buff_tr[2] = 0x09; //Количество байт 
-
-	getSDFlags(&flags_flash);
-	buff_tr[3] = flags_flash.char_flags; //Stat
-
-	//Общее количество в Kb флеш
-	buff_tr[4] = totalMemory >> 24; //Со старшего байта
-	buff_tr[5] = totalMemory >> 16;
-	buff_tr[6] = totalMemory >> 8;
-	buff_tr[7] = totalMemory;
-
-	//Свободное количество в Kb флеш
-	buff_tr[8] = freeMemory >> 24; //Со старшего байта
-	buff_tr[9] = freeMemory >> 16;
-	buff_tr[10] = freeMemory >> 8;
-	buff_tr[11] = freeMemory;
-
-	buff_tr[12] = Crc8(buff_tr, 12); // контрольная сумма
-
-	int test = 0;
-	if (buff_tr[12] != 0xE9)
-		test = 1;
-
-	turn_buffer1(13);
-}
-
-//------------------------------------------------------------------------------
-
-void status_err_read(void)//Ошибка при чтении
-{
-	buff_tr[0] = ADDRESS_Master; //0xFF
-	buff_tr[1] = ADDRESS_Ustroistva; //0x76
-	buff_tr[2] = 1; //Количество байт
-	buff_tr[3] = flags_flash.char_flags; //Stat
-	buff_tr[4] = Crc8(buff_tr, 4); // контрольная сумма
-
-	turn_buffer1(5); //Отослать данные
-}
-
-//------------------------------------------------------------------------------
-
-void readedMessage(unsigned char *str, unsigned char len, uint32_t time)
-{
-	uint8_t i = 0;
-
-	buff_tr[0] = ADDRESS_Master; //0xFF
-	buff_tr[1] = ADDRESS_Ustroistva; //0x76
-	buff_tr[2] = 1 + 4 + len; //Байт статуса, время и количество байт строки
-	buff_tr[3] = FDatas.fread ? flags_flash.char_flags : (flags_flash.char_flags & 0x7f); //Stat (для отображения действительного флага записи (flags_flash.start_write))
-	buff_tr[4] = time >> 24; //Время (со старшего)
-	buff_tr[5] = time >> 16;
-	buff_tr[6] = time >> 8;
-	buff_tr[7] = time;
-
-	for (i = 0; i <= len; i++) buff_tr[8 + i] = str[i];
-	buff_tr[8 + len] = Crc8(buff_tr, (8 + len)); // контрольная сумма
-
-	turn_buffer1(9 + len); //Отослать данные
-}
-
-//------------------------------------------------------------------------------
-
-uint16_t CRC16(uint8_t *item, uint8_t lngth)//Для проверки эмуляции датчика уровня/температуры и давления
-{
-	uint16_t crc = 0xFFFF;
-	uint8_t i;
-
-	while (lngth--)
-	{
-		crc ^= *item++;
-
-		for (i = 8; i > 0; i--)
-			if (crc & 1)
-			{
-				crc >>= 1;
-				crc ^= 0xA001;
-			} else
-			{
-				crc >>= 1;
-			}
 	}
 
 	return crc;
