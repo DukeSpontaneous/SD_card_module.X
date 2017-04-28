@@ -82,5 +82,16 @@ void getSDFlags(struct_flags_flash *flags_flash)
 	// Флаг управления критической секцией главного цикла.
 	// Значение 1 свидетельствует о том, что идёт запись на SD-карту.
 	flags_flash->start_write =
-			rStore.FLAG_IsAvailable ? 0 : 1;
+			rStore.isAvailable ? 0 : 1;
+}
+
+void swapBytes(uint8_t array[], size_t size)
+{
+	uint8_t i, tmp;
+	for (i = 0; i < size / 2; ++i)
+	{
+		tmp = array[size - 1 - i];
+		array[size - 1 - i] = array[i];
+		array[i] = tmp;
+	}
 }

@@ -22,10 +22,10 @@
 #define TIME_BREAK_RX	F * 2000	// Для отслеживания срыва посылки - при работе с PC отключить обработку в _T2Interrupt case timerx_ob
 #define TIME_FREE_LINE	F * 150
 
-#define BAUDRATE 57600
-#define FCY 40000000UL
-#define BRGVAL   ((FCY/BAUDRATE)/16)-1
-#define R_T	LATBbits.LATB7 // RS-485
+#define BAUDRATE	57600
+#define FCY			40000000UL
+#define BRGVAL		((FCY/BAUDRATE)/16)-1
+#define R_T			LATBbits.LATB7 // RS-485
 
 // Таймер будет использоваться для нужд RS-485
 void T2_Initialize(void);

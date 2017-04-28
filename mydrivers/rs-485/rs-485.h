@@ -6,18 +6,12 @@
 #include "system_time.h"
 #include "slave_modul_sd.h"
 
-#define RX_BUF_SIZE          261
-#define TX_BUF_SIZE          128
-
 typedef enum
 {
 	// Адреса системы модулей:
 	MODULE_ADDRESS_SD = 0x76, // Адрес флеш-модуля
 	MODULE_ADDRESS_MASTER = 0xFF // Адрес мастера
 } MODULE_ADDRESS;
-
-#define code_stats 0x80	// Команда запроса
-#define code_write 0x81	// Команда записи
 
 typedef union
 {
@@ -62,9 +56,7 @@ typedef struct
 } StatusRX;
 //------------------------------------------------------------------------------
 
-uint8_t gen_crc8(uint8_t *array, uint8_t length);
+uint8_t gen_crc8(uint8_t array[], uint8_t length);
 void send_answer_status(void);
 
-//void T2_Initialize(void);
-//void RS485_Initialize(void);
 void UART1_TR(void);

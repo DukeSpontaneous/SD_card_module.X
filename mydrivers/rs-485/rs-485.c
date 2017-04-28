@@ -3,10 +3,10 @@
 StatusRX statusRX; // Состояние приёма
 StatusTR statusTR; // Состояние передачи
 
-struct_flags_flash flags_flash;
-
-uint8_t tr_frame[TX_BUF_SIZE], rx_frame[RX_BUF_SIZE]; // Буферы приёма и передачи
 uint16_t bytesTransfer, bytesTransferTotal;
+
+MASTER_FRAME rxFrame; // Буфер приёма
+SLAVE_SD_FRAME trFrame; // Буфер передачи
 
 // RS-485
 
@@ -60,8 +60,8 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
 	{
 		if (statusRX.isMyAddress == 0) // Если кадр для нашего устройства
 		{
-			rx_frame[0] = U1RXREG;
-			if (rx_frame[0] == MODULE_ADDRESS_SD)
+			rxFrame.rx_bytes[0] = U1RXREG;
+			if (rxFrame.rx_bytes[0] == MODULE_ADDRESS_SD)
 			{
 				U1STAbits.URXISEL1 = 1; // Переключить на приём по 4 байта
 				statusRX.isMyAddress = 1; // Адрес совпал
@@ -69,7 +69,7 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
 				PR2 = TIME_BREAK_RX;
 			} else //не совпал
 			{
-				if (rx_frame[0] != 0)
+				if (rxFrame.rx_bytes[0] != 0)
 				{
 					statusRX.timer = 0; // Сброс сработки таймера (посылка данных другому устройству)
 				}
@@ -80,15 +80,15 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
 			{
 				while (U1STAbits.URXDA == 1) // Приём данных
 				{
-					rx_frame[statusRX.bytesReceived++] = U1RXREG;
+					rxFrame.rx_bytes[statusRX.bytesReceived++] = U1RXREG;
 				}
-				statusRX.command = rx_frame[1]; // Код команды
-				statusRX.bytesExpected = rx_frame[3] + 5; // Количество данных (все данные которые принимаются включая CRC и служебные)
+				statusRX.command = rxFrame.rx_bytes[1]; // Код команды
+				statusRX.bytesExpected = rxFrame.rx_bytes[3] + 5; // Количество данных (все данные которые принимаются включая CRC и служебные)
 				statusRX.b4rx = 1; // Служебная информация принята
 				if (statusRX.bytesExpected == 5) // Если в кадре нет поля данных
 				{
-					statusRX.crc = gen_crc8(rx_frame, 4); // Вычисляем CRC
-					if (statusRX.crc == rx_frame[4]) // CRC совпал
+					statusRX.crc = gen_crc8(rxFrame.rx_bytes, 4); // Вычисляем CRC
+					if (statusRX.crc == rxFrame.rx_bytes[4]) // CRC совпал
 					{
 						statusRX.status = 0; // Приём завершился удачно
 					}
@@ -104,7 +104,7 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
 
 				while (U1STAbits.URXDA == 1) // Приём данных
 				{
-					rx_frame[statusRX.bytesReceived++] = U1RXREG;
+					rxFrame.rx_bytes[statusRX.bytesReceived++] = U1RXREG;
 				}
 				if (statusRX.bytesReceived < statusRX.bytesExpected)
 				{
@@ -115,15 +115,18 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
 				} else// Приём завершён
 				{
 					PR2 = TIME_TR;
-					statusRX.crc = gen_crc8(rx_frame, statusRX.bytesReceived - 1);
-					if (statusRX.crc == rx_frame[statusRX.bytesReceived - 1])
+					statusRX.crc = gen_crc8(rxFrame.rx_bytes, statusRX.bytesReceived - 1);
+					if (statusRX.crc == rxFrame.rx_bytes[statusRX.bytesReceived - 1])
 					{
 						statusRX.status = 0; // Приём завершился удачно
-						
-						SLAVE_SD_MasterQueryProcessing(rx_frame, statusRX.bytesReceived);
+
+						swapBytes(rxFrame.rx_bytes + 2, sizeof (uint16_t));
+						swapBytes(rxFrame.rx_bytes + 4, sizeof (uint32_t));
+						SLAVE_SD_TaskProcessing(&rxFrame, statusRX.bytesReceived);
+
 						send_answer_status();
 						CLRWDT();
-						
+
 					} else
 					{
 						statusRX.status = 0;
@@ -139,7 +142,7 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
 		U1STAbits.OERR = 0; // сброс ошибок буфера приема
 		while (U1STAbits.URXDA == 1)//прием данных
 		{
-			rx_frame[0] = U1RXREG;
+			rxFrame.rx_bytes[0] = U1RXREG;
 		}
 
 	}
@@ -160,7 +163,7 @@ void __attribute__((interrupt, auto_psv)) _U1TXInterrupt(void)
 			{
 				break;
 			}
-			U1TXREG = tr_frame[bytesTransfer++]; // Добавляем данные в буфер
+			U1TXREG = trFrame.tx_bytes[bytesTransfer++]; // Добавляем данные в буфер
 
 			if (bytesTransfer == bytesTransferTotal) // Все данные загружены в FIFO, выходим, ожидаем передачу последнего байта
 			{
@@ -212,7 +215,7 @@ void UART1_TR(void)
 
 	for (bytesTransfer = 0; bytesTransfer < bytesTransferTotal;)
 	{
-		U1TXREG = tr_frame[bytesTransfer++];
+		U1TXREG = trFrame.tx_bytes[bytesTransfer++];
 
 		if (U1STAbits.UTXBF == 1)
 			break;
@@ -273,26 +276,21 @@ void send_answer_status(void)
 	if (freeClusters == 0xFFFFFFFF) freeClusters = 0; // Ошибка
 	freeMemory = (sectorsize * freeClusters) >> 2; // Общий объём свободной памяти флеш в Kb
 
-	tr_frame[0] = MODULE_ADDRESS_MASTER;
-	tr_frame[1] = MODULE_ADDRESS_SD;
-	tr_frame[2] = 0x09; // Количество байт 
+	trFrame.destinationAddress = MODULE_ADDRESS_MASTER;
+	trFrame.senderAddress = MODULE_ADDRESS_SD;
+	trFrame.dataSize = 0x09; // Размер блока данных в байтах 
 
+	struct_flags_flash flags_flash;
 	getSDFlags(&flags_flash);
-	tr_frame[3] = flags_flash.char_flags; // Stat
+	trFrame.flags_flash = flags_flash.char_flags; // Stat
 
-	// Общее количество в Kb флеш
-	tr_frame[4] = totalMemory >> 24; // Со старшего байта
-	tr_frame[5] = totalMemory >> 16;
-	tr_frame[6] = totalMemory >> 8;
-	tr_frame[7] = totalMemory;
+	trFrame.totalKb = totalMemory; // Общее количество в Kb флеш
+	swapBytes(trFrame.tx_bytes + 4, sizeof (uint32_t)); // Со старшего байта
 
-	// Свободное количество в Kb флеш
-	tr_frame[8] = freeMemory >> 24; // Со старшего байта
-	tr_frame[9] = freeMemory >> 16;
-	tr_frame[10] = freeMemory >> 8;
-	tr_frame[11] = freeMemory;
+	trFrame.freeKb = freeMemory; // Свободное количество в Kb флеш
+	swapBytes(trFrame.tx_bytes + 8, sizeof (uint32_t)); // Со старшего байта
 
-	tr_frame[12] = gen_crc8(tr_frame, 12); // CRC
+	trFrame.crc = gen_crc8(trFrame.tx_bytes, 12); // CRC
 
 	send_tr_frame(13);
 }
@@ -309,7 +307,7 @@ void send_answer_status(void)
   MaxLen: 15 байт(127 бит) - обнаружение
 	одинарных, двойных, тройных и всех нечетных ошибок
  */
-uint8_t gen_crc8(uint8_t *array, uint8_t length)
+uint8_t gen_crc8(uint8_t array[], uint8_t length)
 {
 	uint8_t crc = 0xFF;
 	uint8_t i;

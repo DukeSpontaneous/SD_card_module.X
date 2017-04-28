@@ -34,7 +34,7 @@ int main(void)
 	FILEIO_ERROR_TYPE error;
 
 	moduleState = MODULE_STATE_NO_CARD;
-	rStore.FLAG_IsAvailable = false;
+	rStore.isAvailable = false;
 
 	while (true)
 	{
@@ -56,7 +56,7 @@ int main(void)
 				error = RINGSTORE_Open(&rStore,
 						&gSdDrive,
 						&sdCardMediaParameters);
-				rStore.FLAG_IsAvailable = true;
+				rStore.isAvailable = true;
 
 				moduleState = error ?
 						MODULE_STATE_FAILED : MODULE_STATE_CARD_INITIALIZED;
@@ -67,7 +67,7 @@ int main(void)
 				{
 					moduleState = RINGSTORE_TryClose(&rStore) ?
 							MODULE_STATE_FAILED : MODULE_STATE_NO_CARD;
-					rStore.FLAG_IsAvailable = false;
+					rStore.isAvailable = false;
 				}
 
 				error = FILEIO_MediaDetect(&gSdDrive, &sdCardMediaParameters);
@@ -75,13 +75,13 @@ int main(void)
 				{
 					moduleState = RINGSTORE_TryClose(&rStore) ?
 							MODULE_STATE_FAILED : MODULE_STATE_NO_CARD;
-					rStore.FLAG_IsAvailable = false;
+					rStore.isAvailable = false;
 				}
 				break;
 			default:
 				// TODO: Сигнализировать об аварийной ситуации и обработать её
 				RINGSTORE_TryClose(&rStore);
-				rStore.FLAG_IsAvailable = false;
+				rStore.isAvailable = false;
 				
 				if (FILEIO_MediaDetect(&gSdDrive, &sdCardMediaParameters) == false)
 				{
